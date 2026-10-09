@@ -9,3 +9,4 @@ class Promo(BaseModel):
     end_date: Optional[str]     # YYYY-MM-DD
     location: Optional[str]
     channel: Optional[str]      # "in_store", "online" or "both"
+    link: Optional[str]         # link to this specific promo, if given

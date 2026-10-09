@@ -3,9 +3,10 @@ from datetime import date, datetime
 import pandas as pd
 import streamlit as st
 
-from fetcher import fetch_text
+from fetcher import fetch_text, fetch_feed_text
 from llm import extract_promos
 from sources import SOURCES
+FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
 
 st.set_page_config(page_title="Bookstore Promo Tracker", page_icon="📚", layout="wide")
 st.title("📚 Malaysia Bookstore Promo Tracker")
@@ -15,7 +16,7 @@ def refresh():
     rows = []
     for source in SOURCES:
         try:
-            text = fetch_text(source["url"])
+            text = FETCHERS[source["type"]](source["url"])
             promos = extract_promos(source["name"], text)
         except Exception as e:
             st.warning(f"Couldn't update {source['name']}: {e}")
@@ -24,7 +25,7 @@ def refresh():
             row = p.model_dump()  # turn the Promo object into a dictionary
             row["source"] = source["name"]
             row["category"] = source["category"]
-            row["link"] = source["url"]
+            row["link"] = p.link or source["url"]
             rows.append(row)
     st.session_state.promos = rows
     st.session_state.last_refreshed = datetime.now()
