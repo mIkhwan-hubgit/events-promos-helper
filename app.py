@@ -1,11 +1,13 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import streamlit as st
 
+import db
 from fetcher import fetch_text, fetch_feed_text
 from llm import extract_promos
 from sources import SOURCES
+
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
 
 st.set_page_config(page_title="Bookstore Promo Tracker", page_icon="📚", layout="wide")
@@ -13,7 +15,8 @@ st.title("📚 Malaysia Bookstore Promo Tracker")
 
 
 def refresh():
-    rows = []
+    conn = db.connect()
+    run_time = db.start_refresh(conn)
     for source in SOURCES:
         try:
             text = FETCHERS[source["type"]](source["url"])
@@ -22,38 +25,76 @@ def refresh():
             st.warning(f"Couldn't update {source['name']}: {e}")
             continue  # skip this store, keep going with the others
         for p in promos:
-            row = p.model_dump()  # turn the Promo object into a dictionary
+            row = p.model_dump()
             row["source"] = source["name"]
             row["category"] = source["category"]
             row["link"] = p.link or source["url"]
-            rows.append(row)
-    st.session_state.promos = rows
-    st.session_state.last_refreshed = datetime.now()
+            db.save_promo(conn, row, run_time)
+    conn.commit()
+    conn.close()
+
+
+def parse_date(value):
+    try:
+        return date.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None  # missing or badly formatted date
 
 
 if st.button("🔄 Refresh", type="primary"):
     with st.spinner("Checking bookstores..."):
         refresh()
 
-if "promos" not in st.session_state:
+conn = db.connect()
+info = db.refresh_info(conn)
+df = pd.DataFrame(db.load_promos(conn))
+conn.close()
+
+if info["count"] == 0:
     st.info("Press Refresh to load the latest promotions.")
     st.stop()
 
-st.caption(f"Last refreshed: {st.session_state.last_refreshed:%d %b %Y, %I:%M %p}")
+latest = info["latest"]
+st.caption(f"Last refreshed: {datetime.fromisoformat(latest):%d %b %Y, %I:%M %p}")
 
-df = pd.DataFrame(st.session_state.promos)
 if df.empty:
     st.write("No promotions found.")
     st.stop()
 
-today = date.today().isoformat()
-if not st.checkbox("Show expired"):
-    df = df[df["end_date"].isna() | (df["end_date"] >= today)]
+today = date.today()
 
-df = df.sort_values("end_date", na_position="last")  # ending soonest first
+
+def status(row):
+    if info["count"] > 1 and row["first_seen"] == latest:
+        return "🆕 New"
+    end = parse_date(row["end_date"])
+    if end:
+        days_left = (end - today).days
+        if days_left < 0:
+            return "Expired"
+        if days_left == 0:
+            return "⏰ Ends today"
+        if days_left <= 3:
+            return f"⏰ Ends in {days_left} days"
+    return ""
+
+
+df["status"] = df.apply(status, axis=1)
+
+if not st.checkbox("Show expired"):
+    still_running = df["end_date"].isna() | (df["end_date"] >= today.isoformat())
+    # promos with no end date disappear once they haven't been seen for 30 days
+    stale_cutoff = (datetime.now() - timedelta(days=30)).isoformat()
+    recently_seen = df["end_date"].notna() | (df["last_seen"] >= stale_cutoff)
+    df = df[still_running & recently_seen]
+
+df = df.sort_values("end_date", na_position="last")
 
 st.dataframe(
-    df[["source", "title", "details", "start_date", "end_date", "location", "channel", "link"]],
+    df[["status", "source", "title", "details", "start_date", "end_date", "location", "channel", "link"]],
     hide_index=True,
-    column_config={"link": st.column_config.LinkColumn("Link", display_text="Open")},
+    column_config={
+           "status": st.column_config.TextColumn("Status", width="medium"),
+           "link": st.column_config.LinkColumn("Link", display_text="Open"),
+       },
 )
