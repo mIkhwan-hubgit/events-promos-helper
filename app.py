@@ -7,6 +7,7 @@ import db
 from fetcher import fetch_text, fetch_feed_text
 from llm import extract_promos
 from sources import SOURCES
+from concurrent.futures import ThreadPoolExecutor
 
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
 
@@ -14,16 +15,25 @@ st.set_page_config(page_title="Bookstore Promo Tracker", page_icon="📚", layou
 st.title("📚 Malaysia Bookstore Promo Tracker")
 
 
+def process_source(source):
+    text = FETCHERS[source["type"]](source["url"])
+    return extract_promos(source["name"], text)
+
+
 def refresh():
+    # Start every store at the same time
+    with ThreadPoolExecutor(max_workers=len(SOURCES)) as pool:
+        jobs = [(source, pool.submit(process_source, source)) for source in SOURCES]
+
+    # All stores are finished by here; save the results one by one
     conn = db.connect()
     run_time = db.start_refresh(conn)
-    for source in SOURCES:
+    for source, job in jobs:
         try:
-            text = FETCHERS[source["type"]](source["url"])
-            promos = extract_promos(source["name"], text)
+            promos = job.result()
         except Exception as e:
             st.warning(f"Couldn't update {source['name']}: {e}")
-            continue  # skip this store, keep going with the others
+            continue
         for p in promos:
             row = p.model_dump()
             row["source"] = source["name"]

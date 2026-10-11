@@ -8,6 +8,7 @@ HEADERS = {
                   "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 }
 
+MYT = timezone(timedelta(hours=8))  # Malaysia time, UTC+8
 
 def fetch_text(url):
     response = requests.get(url, headers=HEADERS, timeout=20)
@@ -34,7 +35,7 @@ def fetch_feed_text(url, max_age_days=45):
             html = entry.get("summary", "")
         body = BeautifulSoup(html, "html.parser").get_text(separator="\n", strip=True)
 
-        date_text = published.date().isoformat() if published else "unknown"
+        date_text = published.astimezone(MYT).date().isoformat() if published else "unknown"
         parts.append(f"Title: {entry.title}\nPublished: {date_text}\nLink: {entry.link}\n{body}")
 
     return "\n\n---\n\n".join(parts)
