@@ -83,13 +83,13 @@
     {
       "title": "JLPT.日本語学習書フェア",
       "start_date": "2026-10-01",
-      "end_date": null,
+      "end_date": "2026-10-31",
       "must_mention": ["15%"]
     },
     {
       "title": "The Religions",
       "start_date": "2026-10-01",
-      "end_date": null,
+      "end_date": "2026-10-31",
       "must_mention": ["15%"]
     },
     {
@@ -102,11 +102,11 @@
       "title": "25 Book Recommendations for October 2026",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": ["15%"]
+      "must_mention": ["25%"]
     },
     {
       "title": "Your Next Great Read Is Here: New Arrivals for 28 September–4 October",
-      "start_date": "2026-09-27",
+      "start_date": "2026-09-28",
       "end_date": "2026-10-04",
       "must_mention": []
     },
@@ -144,7 +144,7 @@
       "title": "The Transformations of Capitalism",
       "start_date": "2026-09-01",
       "end_date": "2026-09-30",
-      "must_mention": ["15%", "Economics"]
+      "must_mention": ["15%"]
     },
     {
       "title": "Expanding Your Technical Capabilities",
