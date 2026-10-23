@@ -8,6 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
 from google.genai import errors
+from google.genai import types
 
 from schema import Promo
 
@@ -32,6 +33,7 @@ Rules:
 - details should describe the offer itself (e.g. "15% off featured finance titles"). Do not repeat the location there. If the text doesn't describe the offer beyond its title, use null. Never copy the title into details.
 - channel must be "in_store", "online" or "both".
 - If the text gives a link for a promotion, put it in link.
+- Some posts come with a banner image, labelled with the post's title. Read the text in each image too. If an image shows an offer (such as a discount), include it in that promotion, even when the post text doesn't mention it.
 - If something is not stated, use null. Never make up details.
 
 Page text from {source}:
@@ -39,7 +41,7 @@ Page text from {source}:
 """
 
 
-def call_gemini(prompt, retries=3):
+def call_gemini(contents, retries=3):
     models = [MODEL] + ([FALLBACK_MODEL] if FALLBACK_MODEL else [])
 
     for model in models:
@@ -47,7 +49,7 @@ def call_gemini(prompt, retries=3):
             try:
                 response = client.models.generate_content(
                     model=model,
-                    contents=prompt,
+                    contents=contents,
                     config={
                         "response_mime_type": "application/json",
                         "response_schema": list[Promo],
@@ -70,18 +72,26 @@ def call_gemini(prompt, retries=3):
     raise RuntimeError("Gemini is unavailable right now (busy, or the daily free limit is used up). Try again later.")
 
 
-def extract_promos(source, text):
+def extract_promos(source, text, images=None):
+    images = images or []
     prompt = PROMPT.format(today=date.today().isoformat(), source=source, text=text)
 
-    # Same prompt as before? Reuse the saved answer instead of calling Gemini again.
-    key = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
-    cache_file = CACHE_DIR / f"{key}.json"
+    # The fingerprint covers the prompt AND every image, so a changed banner means a fresh answer
+    hasher = hashlib.sha256(prompt.encode("utf-8"))
+    for img in images:
+        hasher.update(img["data"])
+    cache_file = CACHE_DIR / f"{hasher.hexdigest()}.json"
     if cache_file.exists():
         print(f"{source}: page unchanged, using cached result")
         saved = json.loads(cache_file.read_text(encoding="utf-8"))
         return [Promo(**item) for item in saved]
 
-    promos = call_gemini(prompt)
+    contents = [prompt]
+    for img in images:
+        contents.append(f"Banner image for the post titled: {img['label']}")
+        contents.append(types.Part.from_bytes(data=img["data"], mime_type=img["mime"]))
+
+    promos = call_gemini(contents)
     if not promos:
         return promos  # don't cache empty results, they're probably a mistake
     CACHE_DIR.mkdir(exist_ok=True)

@@ -3,3 +3,4 @@
 __pycache__/
 .cache/
 promos.db
+eval/pages/*_images/

@@ -1,20 +1,80 @@
+import hashlib
+import json
+import re
+import time
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import feedparser
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timedelta, timezone
-import feedparser
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                   "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 }
-
 MYT = timezone(timedelta(hours=8))  # Malaysia time, UTC+8
+BANNER_DIR = Path(".cache") / "banners"
+OFFER_HINT = re.compile(r"\d+\s*%|RM\s?\d+|\bfree\b", re.IGNORECASE)  # e.g. "15%", "RM10", "free"
+
+
+class RateLimited(Exception):
+    """The website told us to slow down (HTTP 429)."""
+
+
+def polite_get(url, delay=2.0):
+    time.sleep(delay)  # small pause before every request
+    response = requests.get(url, headers=HEADERS, timeout=20)
+    if response.status_code == 429:
+        raise RateLimited(url)  # don't wait around; let the caller decide what to do
+    response.raise_for_status()
+    return response
+
 
 def fetch_text(url):
     response = requests.get(url, headers=HEADERS, timeout=20)
     response.raise_for_status()  # stop with an error if status isn't 200
     soup = BeautifulSoup(response.text, "html.parser")
-    return soup.get_text(separator="\n", strip=True)
+    return soup.get_text(separator="\n", strip=True), []  # no images yet for plain pages
+
+
+def find_banner_image(page_url):
+    response = polite_get(page_url)
+    soup = BeautifulSoup(response.text, "html.parser")
+    tag = soup.find("meta", property="og:image:secure_url") or soup.find("meta", property="og:image")
+    return tag["content"] if tag and tag.get("content") else None
+
+
+def download_image(url):
+    response = polite_get(url)
+    mime = response.headers.get("Content-Type", "image/jpeg").split(";")[0]
+    return response.content, mime
+
+
+def wants_banner(body):
+    # Only look at the banner when the text doesn't already mention an offer
+    return not OFFER_HINT.search(body)
+
+
+def get_banner(post_url, allow_download=True):
+    """Return (data, mime) for a post's banner, using the saved copy if we have one."""
+    key = hashlib.sha256(post_url.encode("utf-8")).hexdigest()
+    data_file = BANNER_DIR / f"{key}.img"
+    meta_file = BANNER_DIR / f"{key}.json"
+    if data_file.exists() and meta_file.exists():
+        mime = json.loads(meta_file.read_text(encoding="utf-8"))["mime"]
+        return data_file.read_bytes(), mime
+    if not allow_download:
+        return None
+    image_url = find_banner_image(post_url)
+    if not image_url:
+        return None
+    data, mime = download_image(image_url)
+    BANNER_DIR.mkdir(parents=True, exist_ok=True)
+    data_file.write_bytes(data)
+    meta_file.write_text(json.dumps({"mime": mime, "post": post_url}), encoding="utf-8")
+    return data, mime
+
 
 def fetch_feed_text(url, max_age_days=45):
     response = requests.get(url, headers=HEADERS, timeout=20)
@@ -22,7 +82,8 @@ def fetch_feed_text(url, max_age_days=45):
     feed = feedparser.parse(response.content)
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
-    parts = []
+    parts, images = [], []
+    rate_limited = False
     for entry in feed.entries:
         when = entry.get("published_parsed") or entry.get("updated_parsed")
         published = datetime(*when[:6], tzinfo=timezone.utc) if when else None
@@ -38,4 +99,19 @@ def fetch_feed_text(url, max_age_days=45):
         date_text = published.astimezone(MYT).date().isoformat() if published else "unknown"
         parts.append(f"Title: {entry.title}\nPublished: {date_text}\nLink: {entry.link}\n{body}")
 
-    return "\n\n---\n\n".join(parts)
+        if not wants_banner(body):
+            continue
+        try:
+            banner = get_banner(entry.link, allow_download=not rate_limited)
+        except RateLimited:
+            rate_limited = True
+            print("Site is rate-limiting us: skipping new banner downloads this time (saved ones are still used).")
+            continue
+        except Exception as e:
+            print(f"Couldn't get banner for '{entry.title}': {e}")
+            continue
+        if banner:
+            data, mime = banner
+            images.append({"label": entry.title, "data": data, "mime": mime})
+
+    return "\n\n---\n\n".join(parts), images

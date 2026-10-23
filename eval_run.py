@@ -35,12 +35,22 @@ def match(expected, predicted):
         used.add(j)
     return matches, used
 
+def load_images(source):
+    img_dir = EVAL_DIR / "pages" / f"{source}_images"
+    manifest_file = img_dir / "manifest.json"
+    if not manifest_file.exists():
+        return []
+    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    return [
+        {"label": m["label"], "mime": m["mime"], "data": (img_dir / m["file"]).read_bytes()}
+        for m in manifest
+    ]
 
 totals = {"expected": 0, "predicted": 0, "found": 0, "dates_ok": 0, "mentions_ok": 0, "mentions_total": 0}
 
 for source, expected in expected_all.items():
     text = (EVAL_DIR / "pages" / f"{source}.txt").read_text(encoding="utf-8")
-    predicted = extract_promos(source, text)
+    predicted = extract_promos(source, text, load_images(source))
     matches, used = match(expected, predicted)
     print(f"\n===== {source} =====")
 

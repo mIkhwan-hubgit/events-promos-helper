@@ -16,8 +16,8 @@ st.title("📚 Malaysia Bookstore Promo Tracker")
 
 
 def process_source(source):
-    text = FETCHERS[source["type"]](source["url"])
-    return extract_promos(source["name"], text)
+    text, images = FETCHERS[source["type"]](source["url"])
+    return extract_promos(source["name"], text, images)
 
 
 def refresh():
