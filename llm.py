@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import time
+import clock
 from datetime import date
 from pathlib import Path
 
@@ -31,17 +32,18 @@ Rules:
 - If no start date is stated but the post has a published date, use the published date as start_date.
 - Pages may mix English and Malay (e.g. Julai = July, Ogos = August, Okt = October).
 - details should describe the offer itself (e.g. "15% off featured finance titles"). Do not repeat the location there. If the text doesn't describe the offer beyond its title, use null. Never copy the title into details.
-- channel must be "in_store", "online" or "both".
+- channel: where the offer can be used. "in_store" = at physical stores or a physical event (a bookfair, a named store or mall). "online" = online orders (e.g. "valid for webstore orders", a promo code entered at checkout, e-gift cards, items you add to cart). "both" = clearly both. Use null if the text and images don't make it clear. Do not guess, and never put a place name here; that belongs in location.
 - If the text gives a link for a promotion, put it in link.
 - Some posts come with a banner image, labelled with the post's title. Read the text in each image too. If an image shows an offer (such as a discount), include it in that promotion, even when the post text doesn't mention it.
 - If something is not stated, use null. Never make up details.
+- If the same offer appears more than once (e.g. the same promo code in two places), list it only once.
 
 Page text from {source}:
 {text}
 """
 
 
-def call_gemini(contents, retries=3):
+def call_gemini(contents, source, retries=3):
     models = [MODEL] + ([FALLBACK_MODEL] if FALLBACK_MODEL else [])
 
     for model in models:
@@ -56,25 +58,29 @@ def call_gemini(contents, retries=3):
                         "temperature": 0,
                     },
                 )
-                return response.parsed or []
+                if response.parsed is None:
+                    print(f"{source}: {model} replied in the wrong format, trying again...")
+                    continue  # counts as a failed attempt
+                print(f"{source}: {model} answered with {len(response.parsed)} promos")
+                return response.parsed, model
             except errors.ServerError:
                 if attempt < retries - 1:
                     wait = 5 * (attempt + 1)
-                    print(f"{model} is busy, retrying in {wait} seconds...")
+                    print(f"{source}: {model} is busy, retrying in {wait} seconds...")
                     time.sleep(wait)
             except errors.ClientError as e:
                 if e.code == 429:
-                    print(f"{model} has used up its free quota, trying the next model...")
+                    print(f"{source}: {model} has used up its free quota, trying the next model...")
                     break  # no point retrying this model today
                 raise  # any other client error (e.g. bad key) should stop immediately
-        print(f"Moving on from {model}...")
+        print(f"{source}: moving on from {model}...")
 
     raise RuntimeError("Gemini is unavailable right now (busy, or the daily free limit is used up). Try again later.")
 
 
 def extract_promos(source, text, images=None):
     images = images or []
-    prompt = PROMPT.format(today=date.today().isoformat(), source=source, text=text)
+    prompt = PROMPT.format(today=clock.today().isoformat(), source=source, text=text)
 
     # The fingerprint covers the prompt AND every image, so a changed banner means a fresh answer
     hasher = hashlib.sha256(prompt.encode("utf-8"))
@@ -91,12 +97,14 @@ def extract_promos(source, text, images=None):
         contents.append(f"Banner image for the post titled: {img['label']}")
         contents.append(types.Part.from_bytes(data=img["data"], mime_type=img["mime"]))
 
-    promos = call_gemini(contents)
+    promos, model_used = call_gemini(contents, source)
     if not promos:
         return promos  # don't cache empty results, they're probably a mistake
+    if model_used != MODEL:
+          return promos  # don't cache fallback answers: next time, try the main model again
     CACHE_DIR.mkdir(exist_ok=True)
     cache_file.write_text(
-        json.dumps([p.model_dump() for p in promos], ensure_ascii=False),
+        json.dumps([p.model_dump(mode="json") for p in promos], ensure_ascii=False),
         encoding="utf-8",
     )
     return promos

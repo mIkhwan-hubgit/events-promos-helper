@@ -1,3 +1,4 @@
+import clock
 import sqlite3
 from datetime import datetime
 
@@ -40,7 +41,7 @@ def make_key(title):
 
 
 def start_refresh(conn):
-    now = datetime.now().isoformat(timespec="seconds")
+    now = clock.now().isoformat(timespec="seconds")
     conn.execute("INSERT INTO refreshes (refreshed_at) VALUES (?)", (now,))
     conn.commit()
     return now

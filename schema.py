@@ -1,5 +1,13 @@
+from enum import Enum
 from typing import Optional
+
 from pydantic import BaseModel
+
+
+class Channel(str, Enum):
+    in_store = "in_store"
+    online = "online"
+    both = "both"
 
 
 class Promo(BaseModel):
@@ -8,5 +16,5 @@ class Promo(BaseModel):
     start_date: Optional[str]   # YYYY-MM-DD
     end_date: Optional[str]     # YYYY-MM-DD
     location: Optional[str]
-    channel: Optional[str]      # "in_store", "online" or "both"
+    channel: Optional[Channel]  # only these three values, or null
     link: Optional[str]         # link to this specific promo, if given

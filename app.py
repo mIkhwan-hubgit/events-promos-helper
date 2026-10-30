@@ -2,6 +2,7 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 import streamlit as st
+import clock
 
 import db
 from fetcher import fetch_text, fetch_feed_text
@@ -22,6 +23,7 @@ def process_source(source):
 
 def refresh():
     # Start every store at the same time
+    problems = []
     with ThreadPoolExecutor(max_workers=len(SOURCES)) as pool:
         jobs = [(source, pool.submit(process_source, source)) for source in SOURCES]
 
@@ -32,16 +34,20 @@ def refresh():
         try:
             promos = job.result()
         except Exception as e:
-            st.warning(f"Couldn't update {source['name']}: {e}")
+            problems.append(f"Couldn't update {source['name']}: {e}")
+            continue
+        if not promos:
+            problems.append(f"{source['name']}: no promotions found this time. The model may have failed, so previously saved promos are kept.")
             continue
         for p in promos:
-            row = p.model_dump()
+            p.model_dump(mode="json")
             row["source"] = source["name"]
             row["category"] = source["category"]
             row["link"] = p.link or source["url"]
             db.save_promo(conn, row, run_time)
     conn.commit()
     conn.close()
+    return problems
 
 
 def parse_date(value):
@@ -51,9 +57,25 @@ def parse_date(value):
         return None  # missing or badly formatted date
 
 
-if st.button("🔄 Refresh", type="primary"):
+COOLDOWN_HOURS = 6
+
+conn = db.connect()
+latest_before = db.refresh_info(conn)["latest"]
+conn.close()
+too_soon = bool(latest_before) and (
+    clock.now() - clock.parse(latest_before) < timedelta(hours=COOLDOWN_HOURS)
+)
+
+if st.button("🔄 Refresh", type="primary", disabled=too_soon):
     with st.spinner("Checking bookstores..."):
-        refresh()
+        st.session_state.problems = refresh()
+    st.rerun()  # redraw the page so the cooldown applies straight away
+
+for message in st.session_state.get("problems", []):
+    st.warning(message)
+
+if too_soon:
+    st.caption(f"Refresh is limited to once every {COOLDOWN_HOURS} hours to protect the free API quota and the stores' websites.")
 
 conn = db.connect()
 info = db.refresh_info(conn)
@@ -71,7 +93,7 @@ if df.empty:
     st.write("No promotions found.")
     st.stop()
 
-today = date.today()
+today = clock.today()
 
 
 def status(row):
@@ -94,7 +116,7 @@ df["status"] = df.apply(status, axis=1)
 if not st.checkbox("Show expired"):
     still_running = df["end_date"].isna() | (df["end_date"] >= today.isoformat())
     # promos with no end date disappear once they haven't been seen for 30 days
-    stale_cutoff = (datetime.now() - timedelta(days=30)).isoformat()
+    stale_cutoff = (clock.now() - timedelta(days=30)).isoformat()
     recently_seen = df["end_date"].notna() | (df["last_seen"] >= stale_cutoff)
     df = df[still_running & recently_seen]
 

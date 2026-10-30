@@ -4,55 +4,64 @@
       "title": "Program Baucar Buku MADANI 2026",
       "start_date": "2026-07-01",
       "end_date": "2026-10-31",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "in_store"
     },
     {
       "title": "Good Reads, Great Value!",
       "start_date": "2026-09-25",
       "end_date": "2026-10-11",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "in_store"
     },
     {
       "title": "Member's Syok Giler Treats",
       "start_date": "2026-10-02",
       "end_date": "2026-11-01",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "in_store"
     },
     {
       "title": "WOW! Deals",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "both"
     },
     {
       "title": "Promosi Bulanan",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "in_store"
     },
     {
       "title": "POPULAR Bookfair @ Sunway University, Sunway Square",
       "start_date": "2026-10-12",
       "end_date": "2026-10-16",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "in_store"
     },
     {
       "title": "Pameran Buku POPULAR @ Ampang Point",
       "start_date": "2026-10-05",
       "end_date": "2026-10-18",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "in_store"
     },
     {
       "title": "POPULAR Bookfair @ 1Borneo Hypermall",
       "start_date": "2026-10-02",
       "end_date": "2026-10-14",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "in_store"
     },
     {
       "title": "POPULAR Bookfair @Emart Tabuan Jaya, Kuching",
       "start_date": "2026-08-21",
       "end_date": "2026-11-01",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "in_store"
     }
   ],
   "Kinokuniya": [
@@ -60,103 +69,120 @@
       "title": "Fresh on the Shelves: Discover Your Next Read in English, Chinese & Japanese",
       "start_date": "2026-10-05",
       "end_date": null,
-      "must_mention": []
+      "must_mention": [],
+      "channel": "online"
     },
     {
       "title": "Read Your Way to Financial Freedom",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": ["15%"]
+      "must_mention": ["15%"],
+      "channel": null
     },
     {
       "title": "Dream Home",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": ["15%"]
+      "must_mention": ["15%"],
+      "channel": "online"
     },
     {
       "title": "The History of Asia: Emperors, Empires and Lands",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": ["15%"]
+      "must_mention": ["15%"],
+      "channel": "online"
     },
     {
       "title": "JLPT.日本語学習書フェア",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": ["15%"]
+      "must_mention": ["15%"],
+      "channel": "online"
     },
     {
       "title": "The Religions",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": ["15%"]
+      "must_mention": ["15%"],
+      "channel": "online"
     },
     {
       "title": "Explore the Battles that shaped the world",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": ["15%", "Osprey"]
+      "must_mention": ["15%", "Osprey"],
+      "channel": "online"
     },
     {
       "title": "25 Book Recommendations for October 2026",
       "start_date": "2026-10-01",
       "end_date": "2026-10-31",
-      "must_mention": ["25%"]
+      "must_mention": ["25%"],
+      "channel": null
     },
     {
       "title": "Your Next Great Read Is Here: New Arrivals for 28 September–4 October",
       "start_date": "2026-09-28",
       "end_date": "2026-10-04",
-      "must_mention": []
+      "must_mention": [],
+      "channel": "online"
     },
     {
       "title": "New Arrivals: 20% Off Featured Titles in English, Chinese & Japanese",
       "start_date": "2026-09-21",
       "end_date": "2026-10-04",
-      "must_mention": ["20%"]
+      "must_mention": ["20%"],
+      "channel": "online"
     },
     {
       "title": "Fresh Picks This Week | English, Chinese & Japanese New Arrivals",
       "start_date": "2026-09-14",
       "end_date": "2026-09-27",
-      "must_mention": ["20%"]
+      "must_mention": ["20%"],
+      "channel": "online"
     },
     {
       "title": "📚 New Arrivals This Week — English, Chinese & Japanese Books",
       "start_date": "2026-09-07",
       "end_date": "2026-09-20",
-      "must_mention": ["20%"]
+      "must_mention": ["20%"],
+      "channel": "online"
     },
     {
       "title": "Curated for You: We Are One",
       "start_date": "2026-09-04",
       "end_date": "2026-09-30",
-      "must_mention": ["15%"]
+      "must_mention": ["15%"],
+      "channel": "online"
     },
     {
       "title": "True Crime: The Truth is Stranger than Fiction",
       "start_date": "2026-09-01",
       "end_date": "2026-09-30",
-      "must_mention": ["15%"]
+      "must_mention": ["15%"],
+      "channel": "online"
     },
     {
       "title": "The Transformations of Capitalism",
       "start_date": "2026-09-01",
       "end_date": "2026-09-30",
-      "must_mention": ["15%"]
+      "must_mention": ["15%"],
+      "channel": "online"
     },
     {
       "title": "Expanding Your Technical Capabilities",
       "start_date": "2026-09-01",
       "end_date": "2026-09-30",
-      "must_mention": ["15%"]
+      "must_mention": ["15%"],
+      "channel": "online"
     },
     {
       "title": "New Arrivals 31/08/2026 - 13/09/2026",
       "start_date": "2026-08-31",
       "end_date": "2026-09-13",
-      "must_mention": ["20%"]
+      "must_mention": ["20%"],
+      "channel": "online"
     }
   ],
   "BookXcess": [
@@ -164,19 +190,22 @@
       "title": "Up to 15% OFF e-Gift Cards!",
       "start_date": null,
       "end_date": null,
-      "must_mention": []
+      "must_mention": [],
+      "channel": "online"
     },
     {
       "title": "Special RM5 Rebate for New Customer [Use promo code: BXFIRST]",
       "start_date": null,
       "end_date": null,
-      "must_mention": []
+      "must_mention": [],
+      "channel": "online"
     },
     {
       "title": "Crazy RM10 Sale",
       "start_date": null,
       "end_date": null,
-      "must_mention": ["RM10"]
+      "must_mention": ["RM10"],
+      "channel": "online"
     }
   ]
 }

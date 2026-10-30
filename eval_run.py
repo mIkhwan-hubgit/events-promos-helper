@@ -46,7 +46,7 @@ def load_images(source):
         for m in manifest
     ]
 
-totals = {"expected": 0, "predicted": 0, "found": 0, "dates_ok": 0, "mentions_ok": 0, "mentions_total": 0}
+totals = {"expected": 0, "predicted": 0, "found": 0, "dates_ok": 0, "mentions_ok": 0, "mentions_total": 0, "channel_ok": 0, "channel_total": 0}
 
 for source, expected in expected_all.items():
     text = (EVAL_DIR / "pages" / f"{source}.txt").read_text(encoding="utf-8")
@@ -75,6 +75,13 @@ for source, expected in expected_all.items():
             else:
                 problems.append(f"missing '{word}'")
 
+        if "channel" in exp:
+            totals["channel_total"] += 1
+            if got.channel == exp["channel"]:
+                totals["channel_ok"] += 1
+            else:
+                problems.append(f"channel {got.channel}, expected {exp['channel']}")
+
         label = "PARTIAL" if problems else "OK     "
         note = f"  ({'; '.join(problems)})" if problems else ""
         print(f"  {label}: {exp['title']}{note}")
@@ -91,3 +98,4 @@ print(f"Recall    (found / should find):   {totals['found']}/{totals['expected']
 print(f"Precision (real / returned):       {totals['found']}/{totals['predicted']} = {pct(totals['found'], totals['predicted'])}")
 print(f"Dates exactly right:               {totals['dates_ok']}/{totals['found']} = {pct(totals['dates_ok'], totals['found'])}")
 print(f"Key details mentioned:             {totals['mentions_ok']}/{totals['mentions_total']} = {pct(totals['mentions_ok'], totals['mentions_total'])}")
+print(f"Channel right:                     {totals['channel_ok']}/{totals['channel_total']} = {pct(totals['channel_ok'], totals['channel_total'])}")
