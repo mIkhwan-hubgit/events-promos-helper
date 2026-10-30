@@ -1,6 +1,6 @@
-import clock
 import sqlite3
-from datetime import datetime
+
+import clock
 
 DB_PATH = "promos.db"
 
@@ -29,7 +29,8 @@ def connect():
     conn.execute("""
         CREATE TABLE IF NOT EXISTS refreshes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            refreshed_at TEXT NOT NULL
+            refreshed_at TEXT NOT NULL,
+            category TEXT NOT NULL
         )
     """)
     return conn
@@ -40,9 +41,9 @@ def make_key(title):
     return " ".join(title.lower().split())
 
 
-def start_refresh(conn):
+def start_refresh(conn, category):
     now = clock.now().isoformat(timespec="seconds")
-    conn.execute("INSERT INTO refreshes (refreshed_at) VALUES (?)", (now,))
+    conn.execute("INSERT INTO refreshes (refreshed_at, category) VALUES (?, ?)", (now, category))
     conn.commit()
     return now
 
@@ -69,8 +70,9 @@ def load_promos(conn):
     return [dict(r) for r in conn.execute("SELECT * FROM promos").fetchall()]
 
 
-def refresh_info(conn):
+def refresh_info(conn, category):
     row = conn.execute(
-        "SELECT COUNT(*) AS count, MAX(refreshed_at) AS latest FROM refreshes"
+        "SELECT COUNT(*) AS count, MAX(refreshed_at) AS latest FROM refreshes WHERE category = ?",
+        (category,),
     ).fetchone()
     return dict(row)

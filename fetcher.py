@@ -4,6 +4,7 @@ import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from icalendar import Calendar
 
 import feedparser
 import requests
@@ -115,3 +116,43 @@ def fetch_feed_text(url, max_age_days=45):
             images.append({"label": entry.title, "data": data, "mime": mime})
 
     return "\n\n---\n\n".join(parts), images
+
+LUMA_LINK = re.compile(r"https://luma\.com/\S+")
+
+
+def to_myt(value):
+    if isinstance(value, datetime):
+        return value.astimezone(MYT)
+    return datetime(value.year, value.month, value.day, tzinfo=MYT)  # all-day event (date only)
+
+
+def fetch_ical_events(url):
+    response = requests.get(url, headers=HEADERS, timeout=20)
+    response.raise_for_status()
+    calendar = Calendar.from_ical(response.content)
+
+    now = datetime.now(MYT)
+    events = []
+    for item in calendar.walk("VEVENT"):
+        start = to_myt(item.decoded("DTSTART"))
+        end = to_myt(item.decoded("DTEND")) if item.get("DTEND") else start
+        if end < now:
+            continue  # already finished
+
+        description = str(item.get("DESCRIPTION", ""))
+        link = LUMA_LINK.search(description)
+        location = str(item.get("LOCATION", "")).strip() or None
+        if location and location.startswith("http"):
+            location = None  # venue hidden until you register
+        organizer = item.get("ORGANIZER")
+
+        events.append({
+            "title": str(item.get("SUMMARY", "")).strip(),
+            "start": start,
+            "end": end,
+            "location": location,
+            "link": link.group(0) if link else None,
+            "host": organizer.params.get("CN") if organizer is not None else None,
+            "description": description,
+        })
+    return events

@@ -43,7 +43,7 @@ Page text from {source}:
 """
 
 
-def call_gemini(contents, source, retries=3):
+def call_gemini(contents, source, schema=list[Promo], retries=3):
     models = [MODEL] + ([FALLBACK_MODEL] if FALLBACK_MODEL else [])
 
     for model in models:
@@ -54,7 +54,7 @@ def call_gemini(contents, source, retries=3):
                     contents=contents,
                     config={
                         "response_mime_type": "application/json",
-                        "response_schema": list[Promo],
+                        "response_schema": schema,
                         "temperature": 0,
                     },
                 )
@@ -108,3 +108,33 @@ def extract_promos(source, text, images=None):
         encoding="utf-8",
     )
     return promos
+
+TECH_PROMPT = """Below is a numbered list of events in and around Kuala Lumpur.
+Return the numbers of the events that are tech events.
+
+Tech events are mainly about software, AI, data, cybersecurity, cloud, hardware or IoT,
+digital product design, developer communities, hackathons, or technology-focused startups.
+Not tech events: fitness, food and drink, art and crafts, music and dance, general social
+mixers, and business events where technology is not the main focus.
+
+{items}
+"""
+
+
+def pick_tech_events(events, source):
+    if not events:
+        return []
+    items = "\n\n".join(f"{i}. {e['title']}\n{e['description'][:600]}" for i, e in enumerate(events))
+    prompt = TECH_PROMPT.format(items=items)
+
+    cache_file = CACHE_DIR / f"tech_{hashlib.sha256(prompt.encode('utf-8')).hexdigest()}.json"
+    if cache_file.exists():
+        print(f"{source}: events unchanged, using cached result")
+        keep = json.loads(cache_file.read_text(encoding="utf-8"))
+    else:
+        keep, model_used = call_gemini(prompt, source, schema=list[int])
+        if model_used == MODEL:  # same rule as before: don't cache fallback answers
+            CACHE_DIR.mkdir(exist_ok=True)
+            cache_file.write_text(json.dumps(keep), encoding="utf-8")
+
+    return [events[i] for i in sorted(set(keep)) if 0 <= i < len(events)]

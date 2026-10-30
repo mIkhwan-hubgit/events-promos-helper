@@ -1,35 +1,48 @@
-from datetime import date, datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
-import clock
 
+import clock
 import db
-from fetcher import fetch_text, fetch_feed_text
-from llm import extract_promos
+from events import to_promo
+from fetcher import fetch_feed_text, fetch_ical_events, fetch_text
+from llm import extract_promos, pick_tech_events
 from sources import SOURCES
-from concurrent.futures import ThreadPoolExecutor
 
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
+COOLDOWN_HOURS = 6
+CATEGORIES = {
+    "bookstore_promo": "📚 Bookstore promos",
+    "tech_event": "💻 Tech events",
+}
 
-st.set_page_config(page_title="Bookstore Promo Tracker", page_icon="📚", layout="wide")
-st.title("📚 Malaysia Bookstore Promo Tracker")
+st.set_page_config(page_title="Promo & Event Tracker", page_icon="📚", layout="wide")
+st.title("📚 Malaysia Bookstore Promos & Tech Events")
 
 
 def process_source(source):
+    if source["type"] == "ical":
+        events = fetch_ical_events(source["url"])
+        if source.get("tech_filter"):
+            events = pick_tech_events(events, source["name"])
+        return [to_promo(e) for e in events]
     text, images = FETCHERS[source["type"]](source["url"])
     return extract_promos(source["name"], text, images)
 
 
-def refresh():
-    # Start every store at the same time
-    problems = []
-    with ThreadPoolExecutor(max_workers=len(SOURCES)) as pool:
-        jobs = [(source, pool.submit(process_source, source)) for source in SOURCES]
+def refresh(category):
+    sources = [s for s in SOURCES if s["category"] == category]
 
-    # All stores are finished by here; save the results one by one
+    # Start every source in this category at the same time
+    with ThreadPoolExecutor(max_workers=len(sources)) as pool:
+        jobs = [(source, pool.submit(process_source, source)) for source in sources]
+
+    # All sources are finished by here; save the results one by one
+    problems = []
     conn = db.connect()
-    run_time = db.start_refresh(conn)
+    run_time = db.start_refresh(conn, category)
     for source, job in jobs:
         try:
             promos = job.result()
@@ -37,10 +50,11 @@ def refresh():
             problems.append(f"Couldn't update {source['name']}: {e}")
             continue
         if not promos:
-            problems.append(f"{source['name']}: no promotions found this time. The model may have failed, so previously saved promos are kept.")
+            if source["type"] != "ical":  # an empty event calendar is normal, not a failure
+                problems.append(f"{source['name']}: nothing found this time. The model may have failed, so previously saved results are kept.")
             continue
         for p in promos:
-            p.model_dump(mode="json")
+            row = p.model_dump(mode="json")
             row["source"] = source["name"]
             row["category"] = source["category"]
             row["link"] = p.link or source["url"]
@@ -57,48 +71,18 @@ def parse_date(value):
         return None  # missing or badly formatted date
 
 
-COOLDOWN_HOURS = 6
-
-conn = db.connect()
-latest_before = db.refresh_info(conn)["latest"]
-conn.close()
-too_soon = bool(latest_before) and (
-    clock.now() - clock.parse(latest_before) < timedelta(hours=COOLDOWN_HOURS)
-)
-
-if st.button("🔄 Refresh", type="primary", disabled=too_soon):
-    with st.spinner("Checking bookstores..."):
-        st.session_state.problems = refresh()
-    st.rerun()  # redraw the page so the cooldown applies straight away
-
-for message in st.session_state.get("problems", []):
-    st.warning(message)
-
-if too_soon:
-    st.caption(f"Refresh is limited to once every {COOLDOWN_HOURS} hours to protect the free API quota and the stores' websites.")
-
-conn = db.connect()
-info = db.refresh_info(conn)
-df = pd.DataFrame(db.load_promos(conn))
-conn.close()
-
-if info["count"] == 0:
-    st.info("Press Refresh to load the latest promotions.")
-    st.stop()
-
-latest = info["latest"]
-st.caption(f"Last refreshed: {datetime.fromisoformat(latest):%d %b %Y, %I:%M %p}")
-
-if df.empty:
-    st.write("No promotions found.")
-    st.stop()
-
-today = clock.today()
-
-
-def status(row):
-    if info["count"] > 1 and row["first_seen"] == latest:
+def status(row, info, today):
+    if info["count"] > 1 and row["first_seen"] == info["latest"]:
         return "🆕 New"
+    if row["category"] == "tech_event":
+        start = parse_date(row["start_date"])
+        if start:
+            days = (start - today).days
+            if days == 0:
+                return "📅 Today"
+            if 0 < days <= 3:
+                return f"📅 In {days} days"
+        return ""
     end = parse_date(row["end_date"])
     if end:
         days_left = (end - today).days
@@ -111,22 +95,68 @@ def status(row):
     return ""
 
 
-df["status"] = df.apply(status, axis=1)
+def show_category(category, df, show_expired):
+    conn = db.connect()
+    info = db.refresh_info(conn, category)
+    conn.close()
 
-if not st.checkbox("Show expired"):
-    still_running = df["end_date"].isna() | (df["end_date"] >= today.isoformat())
-    # promos with no end date disappear once they haven't been seen for 30 days
-    stale_cutoff = (clock.now() - timedelta(days=30)).isoformat()
-    recently_seen = df["end_date"].notna() | (df["last_seen"] >= stale_cutoff)
-    df = df[still_running & recently_seen]
+    too_soon = bool(info["latest"]) and (
+        clock.now() - clock.parse(info["latest"]) < timedelta(hours=COOLDOWN_HOURS)
+    )
+    if st.button("🔄 Refresh", key=f"refresh_{category}", type="primary", disabled=too_soon):
+        with st.spinner("Checking sources..."):
+            st.session_state[f"problems_{category}"] = refresh(category)
+        st.rerun()  # redraw the page so the cooldown applies straight away
+    if too_soon:
+        st.caption(f"Refresh is limited to once every {COOLDOWN_HOURS} hours to protect the free API quota and the websites.")
+    for message in st.session_state.get(f"problems_{category}", []):
+        st.warning(message)
 
-df = df.sort_values("end_date", na_position="last")
+    if info["count"] == 0:
+        st.info("Press Refresh to load the latest results.")
+        return
+    st.caption(f"Last refreshed: {clock.parse(info['latest']):%d %b %Y, %I:%M %p}")
 
-st.dataframe(
-    df[["status", "source", "title", "details", "start_date", "end_date", "location", "channel", "link"]],
-    hide_index=True,
-    column_config={
-           "status": st.column_config.TextColumn("Status", width="medium"),
-           "link": st.column_config.LinkColumn("Link", display_text="Open"),
-       },
-)
+    rows = df[df["category"] == category].copy() if not df.empty else pd.DataFrame()
+    if rows.empty:
+        st.write("Nothing found yet.")
+        return
+
+    today = clock.today()
+    rows["status"] = rows.apply(lambda r: status(r, info, today), axis=1)
+    if not show_expired:
+        still_running = rows["end_date"].isna() | (rows["end_date"] >= today.isoformat())
+        # items with no end date disappear once they haven't been seen for 30 days
+        stale_cutoff = (clock.now() - timedelta(days=30)).isoformat()
+        recently_seen = rows["end_date"].notna() | (rows["last_seen"] >= stale_cutoff)
+        rows = rows[still_running & recently_seen]
+    if rows.empty:
+        st.write("Nothing current right now.")
+        return
+
+    if category == "tech_event":
+        rows = rows.sort_values("start_date")
+        columns = ["status", "source", "title", "details", "location", "link"]
+    else:
+        rows = rows.sort_values("end_date", na_position="last")  # ending soonest first
+        columns = ["status", "source", "title", "details", "start_date", "end_date", "location", "channel", "link"]
+
+    st.dataframe(
+        rows[columns],
+        hide_index=True,
+        column_config={
+            "status": st.column_config.TextColumn("Status", width="medium"),
+            "link": st.column_config.LinkColumn("Link", display_text="Open"),
+        },
+    )
+
+
+conn = db.connect()
+df = pd.DataFrame(db.load_promos(conn))
+conn.close()
+
+show_expired = st.checkbox("Show expired")
+tabs = st.tabs(list(CATEGORIES.values()))
+for tab, category in zip(tabs, CATEGORIES):
+    with tab:
+        show_category(category, df, show_expired)
