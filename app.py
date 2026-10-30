@@ -42,7 +42,8 @@ def refresh(category):
     # All sources are finished by here; save the results one by one
     problems = []
     conn = db.connect()
-    run_time = db.start_refresh(conn, category)
+    run_time = None
+    seen_links = set()
     for source, job in jobs:
         try:
             promos = job.result()
@@ -53,7 +54,13 @@ def refresh(category):
             if source["type"] != "ical":  # an empty event calendar is normal, not a failure
                 problems.append(f"{source['name']}: nothing found this time. The model may have failed, so previously saved results are kept.")
             continue
+        if run_time is None:
+            run_time = db.start_refresh(conn, category)  # only count the refresh once a source actually worked
         for p in promos:
+            if source["type"] == "ical":
+                if p.link and p.link in seen_links:
+                    continue  # same event already saved from another feed in this refresh
+                seen_links.add(p.link)
             row = p.model_dump(mode="json")
             row["source"] = source["name"]
             row["category"] = source["category"]
@@ -62,7 +69,6 @@ def refresh(category):
     conn.commit()
     conn.close()
     return problems
-
 
 def parse_date(value):
     try:

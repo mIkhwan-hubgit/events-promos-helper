@@ -142,19 +142,25 @@ def parse_ical_events(data, after=None):
             continue  # already finished
 
         description = str(item.get("DESCRIPTION", ""))
-        link = LUMA_LINK.search(description)
+        uid = str(item.get("UID", ""))
+        event_id = uid.split("@")[0]
+        if event_id.startswith("evt-"):
+            link = f"https://luma.com/event/{event_id}"  # Luma's permanent page for this exact event
+        else:
+            match = LUMA_LINK.search(description)
+            link = match.group(0) if match else None
         location = str(item.get("LOCATION", "")).strip() or None
         if location and location.startswith("http"):
             location = None  # venue hidden until you register
         organizer = item.get("ORGANIZER")
 
         events.append({
-            "uid": str(item.get("UID", "")),  # Luma's own event ID; we'll use it for duplicates later
+            "uid": uid,
             "title": str(item.get("SUMMARY", "")).strip(),
             "start": start,
             "end": end,
             "location": location,
-            "link": link.group(0) if link else None,
+            "link": link,
             "host": organizer.params.get("CN") if organizer is not None else None,
             "description": description,
         })
