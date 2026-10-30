@@ -126,17 +126,19 @@ def to_myt(value):
     return datetime(value.year, value.month, value.day, tzinfo=MYT)  # all-day event (date only)
 
 
-def fetch_ical_events(url):
+def fetch_ical_bytes(url):
     response = requests.get(url, headers=HEADERS, timeout=20)
     response.raise_for_status()
-    calendar = Calendar.from_ical(response.content)
+    return response.content
 
-    now = datetime.now(MYT)
+
+def parse_ical_events(data, after=None):
+    calendar = Calendar.from_ical(data)
     events = []
     for item in calendar.walk("VEVENT"):
         start = to_myt(item.decoded("DTSTART"))
         end = to_myt(item.decoded("DTEND")) if item.get("DTEND") else start
-        if end < now:
+        if after and end < after:
             continue  # already finished
 
         description = str(item.get("DESCRIPTION", ""))
@@ -147,6 +149,7 @@ def fetch_ical_events(url):
         organizer = item.get("ORGANIZER")
 
         events.append({
+            "uid": str(item.get("UID", "")),  # Luma's own event ID; we'll use it for duplicates later
             "title": str(item.get("SUMMARY", "")).strip(),
             "start": start,
             "end": end,
@@ -156,3 +159,7 @@ def fetch_ical_events(url):
             "description": description,
         })
     return events
+
+
+def fetch_ical_events(url):
+    return parse_ical_events(fetch_ical_bytes(url), after=datetime.now(MYT))

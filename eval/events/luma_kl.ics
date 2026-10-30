@@ -1,0 +1,310 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Luma//What‘s Happening in Kuala Lumpur//EN
+X-WR-CALNAME:What‘s Happening in Kuala Lumpur
+X-WR-CALDESC:Luma Calendar
+REFRESH-INTERVAL;VALUE=DURATION:PT12H
+X-PUBLISHED-TTL:PT12H
+CALSCALE:GREGORIAN
+METHOD:PUBLISH
+BEGIN:VEVENT
+DTSTART:20261031T010000Z
+DTEND:20261031T020000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Cult Creative":MAILTO:calendar-invite@lu.ma
+UID:evt-F7qJhgl3cerOp0C@events.lu.ma
+SUMMARY:Dance Class by Groove Society 🕺🏻
+DESCRIPTION:Get up-to-date information at: https://luma.com/gwp1eoku\n\nAd
+ dress:\nSky Society KL\nKuala Lumpur, Malaysia\n\nJoin Maybelline Wong for
+  a beginner-friendly dance class that feels like a party. Learn simple gro
+ oves and party dances to a live DJ set of R&B, hip-hop, funk, soul, and di
+ sco 💃🏻\nCreated for first-timers and beginners, this class is all ab
+ out enjoying music, movement, and dancing together in a fun and welcoming 
+ space 💛🩵\n\nHosted by Cult Creative
+LOCATION:Sky Society KL, Level 3A, Podium Block, Wisma New Asia, 57, Jalan
+  Raja Chulan, Bukit Ceylon, 50200 Kuala Lumpur, Wilayah Persekutuan Kuala 
+ Lumpur, Malaysia
+GEO:3.1504801;101.7072388
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261031T020000Z
+DTEND:20261031T040000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Cult Creative":MAILTO:calendar-invite@lu.ma
+UID:evt-w2bm20DEEHK1Ppv@events.lu.ma
+SUMMARY:Coffee Party by Coffeeboy Records ☕️
+DESCRIPTION:Get up-to-date information at: https://luma.com/zuce2bjc\n\nAd
+ dress:\nSky Society KL\nKuala Lumpur, Malaysia\n\nKick off your weekend wi
+ th CoffeeBoy Records! Join us from 10AM to 12PM for good coffee, feel-good
+  beats and a little dance to shake off the week's stress. \n\nGrab a cup o
+ f coffee on us, move how you feel, and start your weekend on the right not
+ e 💿\n\nWalk-in registration available too!\n\nHosted by Cult Creative
+LOCATION:Sky Society KL, Level 3A, Podium Block, Wisma New Asia, 57, Jalan
+  Raja Chulan, Bukit Ceylon, 50200 Kuala Lumpur, Wilayah Persekutuan Kuala 
+ Lumpur, Malaysia
+GEO:3.1504801;101.7072388
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261031T020000Z
+DTEND:20261031T040000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Kumpul":MAILTO:calendar-invite@lu.ma
+UID:evt-KNwFTG8GXq5tfLA@events.lu.ma
+SUMMARY:Kuntum - Flowers Workshop
+DESCRIPTION:Get up-to-date information at: https://luma.com/50o4mm39\n\nAd
+ dress:\nSenjaBrew MY - Coffee & Matcha\nCyberjaya, Malaysia\n\nEvery frien
+ dship begins as a bud 🌼\nKuntum is a quiet space to learn about flowers
+ , slow down, and meet kindred minds. It's the first of our Kumpul communit
+ y clubs, and this is where it begins.\nJoin us at SenjaBrew for our very f
+ irst session. We'll arrange flowers by hand, sip good coffee and matcha, a
+ nd chat with people we haven't met yet.\nWHAT WE'LL DO\nA short, friendly 
+ intro to the flowers and how to handle them\nGuided bouquet-making, step b
+ y step\nCoffee/matcha and conversation while we work\nTake your bouquet ho
+ me\nWHO IT'S FOR\nAnyone. Total beginners are especially welcome. You don'
+ t need…\n\nHosted by Kumpul
+LOCATION:SenjaBrew MY - Coffee & Matcha, D-G-5, CBD Perdana, 3, Jln Perdan
+ a, Cyber 12, 63000 Cyberjaya, Selangor, Malaysia
+GEO:2.9251928;101.6504181
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261031T060000Z
+DTEND:20261031T071500Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="CIPHR":MAILTO:calendar-invite@lu.ma
+UID:evt-W9R9uU7zwQQ4mh0@events.lu.ma
+SUMMARY:MONSTER GAMES
+DESCRIPTION:Get up-to-date information at: https://luma.com/dnd9p49u\n\nAd
+ dress:\nREP Hybrid\nKuala Lumpur, Malaysia\n\nHalloween is getting competi
+ tive. Join CIPHR for MONSTER GAMES at REP HYBRID on October 31. Bring your
+  intent, test yourself under pressure and leave with your personal CIPHR S
+ IGNAL, a snapshot of your performance across every domain. Whether you run
+ , lift, take on HYROX or CrossFit, or are easing back into training, come 
+ ready to find out what you can do.\nBring the Halloween energy in black, r
+ ed, and performance gear. Costumes are encouraged, so give yours a competi
+ tive edge: the best-dressed participant wins R1 Protein 1lb, Creatine 30s,
+  and a shaker. Every ticket also comes with RM444…\n\nHosted by CIPHR & 
+ REP HYBRID
+LOCATION:REP Hybrid, Level 7, Glo Damansara, 699, Jln Damansara, Taman Tun
+  Dr Ismail, 60000 Kuala Lumpur, Wilayah Persekutuan Kuala Lumpur, Malaysia
+GEO:3.1336065000000004;101.6298211
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261031T070000Z
+DTEND:20261031T090000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Serene Gan":MAILTO:calendar-invite@lu.ma
+UID:evt-zBlHOgIf39gJHmL@events.lu.ma
+SUMMARY:Make AI Work For You: Build Your First AI Agent in 2 Hours
+DESCRIPTION:Get up-to-date information at: https://luma.com/ak5w22ry\n\nAd
+ dress:\nCommon Ground, 1 Powerhouse\nPetaling Jaya, Malaysia\n\nWe are sol
+ d out! Thank you for the warm response! 💕\nWe may open 1-2 more spots t
+ his week. Join the waitlist for a spot or to hear about our next Women Who
+  AI workshop and event.\n\n====\n\nYou already use ChatGPT or Claude. But 
+ every chat starts from scratch, and you find yourself typing the same thin
+ gs:\n"Keep it short." "Format it the way I do my client reports." "Here ar
+ e my dietary restrictions, again." "Remember what I told you about this pr
+ oject…"\nMaybe you've tried building an agent by watching YouTube tutori
+ als and got stuck when it didn't give you the output you wanted. And there
+ 's no…\n\nHosted by Serene Gan & Yin Sylvia
+LOCATION:Common Ground, 1 Powerhouse, 1 Powerhouse, Horizon Penthouse, 1, 
+ Persiaran Bandar Utama, Bandar Utama, 47800 Petaling Jaya, Selangor, Malay
+ sia
+GEO:3.1447130999999997;101.6173827
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261031T110000Z
+DTEND:20261031T130000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="The Right Place":MAILTO:calendar-invite@lu.ma
+UID:evt-NBDnf5hJqKY7bLv@events.lu.ma
+SUMMARY:A Spooky Social
+DESCRIPTION:Get up-to-date information at: https://luma.com/d5rwfbra\n\nAd
+ dress:\nCheck event page for more details.\n\nTHE RIGHT PLACE presents 
+ 🎃 A SPOOKY SOCIAL\nThis Halloween, we’re bringing together a curated 
+ group of strangers for a night of games, unexpected connections, and a lit
+ tle spooky chaos.\nWe’re taking over a retro-inspired venue with a Hallo
+ ween-themed photo op, so come dressed in your Halloween best — spooky, g
+ lamorous, silly, mysterious, or completely unexplainable.\nExpect a variet
+ y of games, plenty of mingling, and a little mystery along the way. As the
+  night unfolds, you’ll get to know your fellow strangers, but can you fi
+ gure out who is who when the mystery guessing game begins?\nAnd just…\n
+ \nHosted by The Right Place
+LOCATION:https://luma.com/event/evt-NBDnf5hJqKY7bLv
+GEO:3.1080350698482926;101.62352912380862
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261101T050000Z
+DTEND:20261101T053000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Cult Creative":MAILTO:calendar-invite@lu.ma
+UID:evt-zLfVrWYAkBxwPUK@events.lu.ma
+SUMMARY:Mahjong Socials by Tai Tai Club 🀄️ (1PM-1:30PM)
+DESCRIPTION:Get up-to-date information at: https://luma.com/40r8t2io\n\nAd
+ dress:\nSky Society KL\nKuala Lumpur, Malaysia\n\nCome together for a game
+  of Mahjong 🀞\nGather your friends or meet fellow players for a casual 
+ game. Each table accommodates 3 players, with sessions priced at RM10 per 
+ 30 minutes. Grab your spot and let the tiles do the talking!\n\nWalk-in re
+ gistration available too!\n\nHosted by Cult Creative
+LOCATION:Sky Society KL, Level 3A, Podium Block, Wisma New Asia, 57, Jalan
+  Raja Chulan, Bukit Ceylon, 50200 Kuala Lumpur, Wilayah Persekutuan Kuala 
+ Lumpur, Malaysia
+GEO:3.1504801;101.7072388
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261108T020000Z
+DTEND:20261108T080000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Kolektif Kucing":MAILTO:calendar-invite@lu.ma
+UID:evt-DzwNoAuFPCWfNU8@events.lu.ma
+SUMMARY:Volunteer + Silent Reading
+DESCRIPTION:Get up-to-date information at: https://luma.com/q7x63chd\n\nAd
+ dress:\nCheck event page for more details.\n\nEffective 1 August 2026, vol
+ unteer sundays will be held on the first and last week of the month. It wi
+ ll also highlight a thematic activity, such as reading, crafts, board game
+ s, or a meaningful discourse.\nEach participant can choose to do both acti
+ vities, or just the one you feel like.\nThis week’s activity:\n⭐️ Vo
+ lunteer: 10-12pm and 3-4pm\n⭐️ Silent reading:  12pm to 4pm\n\nHosted 
+ by Kolektif Kucing
+LOCATION:https://luma.com/event/evt-DzwNoAuFPCWfNU8
+GEO:3.137586134105009;101.69612661425602
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261111T070000Z
+DTEND:20261111T100000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="SwiftLah! Community":MAILTO:calendar-invite@lu.ma
+UID:evt-SpkbL2oslzFdGsC@events.lu.ma
+SUMMARY:Code Meets Animation - SwiftLah! Community x LottieFiles
+DESCRIPTION:Get up-to-date information at: https://luma.com/cwe18vhn\n\nAd
+ dress:\nMYTODAY\nPetaling Jaya, Malaysia\n\nCode Meets Animation: Malaysia
+ \nSwiftLah! Community x LottieFiles\nSoftware is going headless. More of w
+ hat we build is now generated, composed and shipped through code, prompts 
+ and agents rather than drawn by hand in a UI. So where does motion fit whe
+ n the canvas disappears?\nCode Meets Animation is an afternoon by the Swif
+ tLah! Community and LottieFiles hosted by MyToday for developers, designer
+ s and builders who want to bring motion into the way they already work. We
+ ’ll look at what happens when animation becomes something you can descri
+ be, generate and control in code, and how teams are…\n\nHosted by SwiftL
+ ah! Community & 3 others
+LOCATION:MYTODAY, T13 - 15, 3rd Floor, Atria Shopping Gallery, Jalan SS 22
+ /23, Damansara Jaya, 47400 Petaling Jaya, Selangor, Malaysia
+GEO:3.1282105;101.61707559999999
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261114T020000Z
+DTEND:20261114T090000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Codex Malaysia Community":MAILTO:calendar-invite@lu.ma
+UID:evt-xcoHSyyLWhPDUtA@events.lu.ma
+SUMMARY:DevDay Exchange Community: Kuala Lumpur - Learn, Build & Get Certi
+ fied
+DESCRIPTION:Get up-to-date information at: https://luma.com/g0b73qdw\n\nAd
+ dress:\nUniversiti Tunku Abdul Rahman (UTAR)\nKajang, Malaysia\n\nFrom AI 
+ basics to real workflows, agents and Codex - in one hands-on day.\nJoin Co
+ dex Community Malaysia for a practical student and builder meetup where yo
+ u’ll learn how to move from simple prompting to structured AI workflows 
+ and building with Codex.\nAI Foundations → Applied Workflows → Agents 
+ → Building with Codex\nNo advanced AI experience required. Bring your la
+ ptop, one real task or idea, and build with us.\n🚀 What you’ll learn
+ \nPrompting, context and responsible AI\nTurning repetitive tasks into reu
+ sable AI workflows\nHuman review and quality checkpoints\nAgentic workflow
+ s and structured…\n\nHosted by Codex Malaysia Community & 4 others
+LOCATION:Universiti Tunku Abdul Rahman (UTAR), Jalan Sungai Long, Bandar S
+ ungai Long, 43000 Kajang, Selangor, Malaysia
+GEO:3.0396443;101.7942363
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261115T000000Z
+DTEND:20261115T030000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Wolo Yoga":MAILTO:calendar-invite@lu.ma
+UID:evt-HZZlkRz386cmnCE@events.lu.ma
+SUMMARY:Tiramisu Flow at KLCC
+DESCRIPTION:Get up-to-date information at: https://luma.com/zgqe8nri\n\nAd
+ dress:\nKLCC Park\nKuala Lumpur, Malaysia\n\nYour Sunday morning, sorted. 
+ 🧘‍♀️\nSkip the usual lie-in and start the day with movement, good
+  people, and a reward at the end. Floe Active, Wolo Yoga, and Isetan KLCC 
+ are teaming up for a morning in the park that ends with treats and perks.
+ \nWhat’s in it for you:\n🌿 A guided Inside Flow session with Grace Kh
+ oo. Stretch, breathe, and reset your body and mind, whether you’re a reg
+ ular or a beginner.\n🎁 Mini games and giveaways. Play, laugh, and walk 
+ away with prizes from our partners.\n🍰 A free Tiramisu on us. Redeem it
+  at the Isetan KLCC booth after class.\n🛍️ Mysterious goodies to take
+  home.…\n\nHosted by Wolo Yoga
+LOCATION:KLCC Park, City Centre, Kuala Lumpur City Centre, 50450 Kuala Lum
+ pur, Wilayah Persekutuan Kuala Lumpur, Malaysia
+GEO:3.1555902;101.71478719999999
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261117T013000Z
+DTEND:20261117T093000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Daniel Cerventus":MAILTO:calendar-invite@lu.ma
+UID:evt-nYkgA5BKxTtmQdl@events.lu.ma
+SUMMARY:Startup School Malaysia 2026
+DESCRIPTION:Get up-to-date information at: https://luma.com/l22nw5yc\n\nAd
+ dress:\nAsia School of Business (ASB) Academic\nKuala Lumpur, Malaysia\n\n
+ Startup School Malaysia is a full-day, hands-on program for founders. It r
+ uns on Day 2 of Startup Week Malaysia 2026 at Asia School of Business, Kua
+ la Lumpur.\nThe market has changed. Investors expect more, AI has reset wh
+ at a small team can ship, and attention is harder to win. So this is not a
+  day of sitting and listening. You'll feel leverage in a play-money tradin
+ g game, pitch a deck you've never seen in PowerPoint Karaoke, find out who
+  really wins in Trade to Victory, and test your idea with AI tools in a li
+ ve lab.\nBetween games, get straight answers on raising in an AI-driven ma
+ rket,…\n\nHosted by Daniel Cerventus
+LOCATION:Asia School of Business (ASB) Academic, Level 1, 11, Jalan Dato O
+ nn, Kuala Lumpur, 50480 Kuala Lumpur, Wilayah Persekutuan Kuala Lumpur, Ma
+ laysia
+GEO:3.1554656;101.69246389999999
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+BEGIN:VEVENT
+DTSTART:20261120T053000Z
+DTEND:20261120T093000Z
+DTSTAMP:20261030T171129Z
+ORGANIZER;CN="Brendan Beh":MAILTO:calendar-invite@lu.ma
+UID:evt-5Z8SiStaxC4MeIr@events.lu.ma
+SUMMARY:Mini-Hack: How Many Waze to Get Navigation Right
+DESCRIPTION:Get up-to-date information at: https://luma.com/64vm5ekc\n\nAd
+ dress:\nAsia School of Business (ASB) Academic\nKuala Lumpur, Malaysia\n\n
+ TuJU got Malaysians talking about navigation. If you've caught yourself sa
+ ying “I could build something better,” bring your laptop.\nWe're putti
+ ng that confidence to the test in a half-day hackathon. Your challenge is 
+ to build a navigation app for a real Malaysian journey, put it online, and
+  get people outside your team to try it.\nUse your favourite AI coding too
+ ls and existing mapping and routing services. By the end, your team needs:
+ \nA working app people can open on their phones.\nFive people outside your
+  team who have tried it.\nA short demo\nA public post on social media sell
+ ing your…\n\nHosted by Brendan Beh, Edward Low & Olivia Lim
+LOCATION:Asia School of Business (ASB) Academic, Level 1, 11, Jalan Dato O
+ nn, Kuala Lumpur, 50480 Kuala Lumpur, Wilayah Persekutuan Kuala Lumpur, Ma
+ laysia
+GEO:3.1554656;101.69246389999999
+SEQUENCE:215543489
+STATUS:TENTATIVE
+END:VEVENT
+END:VCALENDAR
