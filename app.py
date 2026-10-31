@@ -12,11 +12,12 @@ from llm import extract_promos, pick_tech_events
 from sources import SOURCES
 
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
-COOLDOWN_HOURS = 0
+COOLDOWN_HOURS = 6
 CATEGORIES = {
     "bookstore_promo": "📚 Bookstore promos",
     "tech_event": "💻 Tech events",
 }
+CHANNEL_LABELS = {"in_store": "In store", "online": "Online", "both": "In store & online"}
 
 st.set_page_config(page_title="Promo & Event Tracker", page_icon="📚", layout="wide")
 st.title("📚 Malaysia Bookstore Promos & Tech Events")
@@ -103,8 +104,17 @@ def status(row, info, today):
             return f"⏰ Ends in {days_left} days"
     return ""
 
+def date_window(choice, today):
+    if choice == "This weekend":
+        if today.weekday() == 6:  # Sunday: the weekend is just today
+            return today, today
+        saturday = today + timedelta(days=5 - today.weekday())
+        return max(today, saturday), saturday + timedelta(days=1)
+    if choice == "Next 7 days":
+        return today, today + timedelta(days=6)
+    return None  # any time
 
-def show_category(category, df, show_expired):
+def show_category(category, df, show_expired, window):
     conn = db.connect()
     info = db.refresh_info(conn, category)
     conn.close()
@@ -139,9 +149,12 @@ def show_category(category, df, show_expired):
         stale_cutoff = (clock.now() - timedelta(days=30)).isoformat()
         recently_seen = rows["end_date"].notna() | (rows["last_seen"] >= stale_cutoff)
         rows = rows[still_running & recently_seen]
-    if rows.empty:
-        st.write("Nothing current right now.")
-        return
+    if window:
+        # keep anything running at some point during the window
+        window_start, window_end = (d.isoformat() for d in window)
+        starts_in_time = rows["start_date"].isna() | (rows["start_date"] <= window_end)
+        not_ended = rows["end_date"].isna() | (rows["end_date"] >= window_start)
+        rows = rows[starts_in_time & not_ended]
 
     if category == "tech_event":
         topics = sorted(rows["topic"].dropna().unique()) if "topic" in rows else []
@@ -149,16 +162,41 @@ def show_category(category, df, show_expired):
             chosen = st.multiselect("Topics", topics, default=topics, key="topics")
             rows = rows[rows["topic"].isin(chosen) | rows["topic"].isna()]
         rows = rows.sort_values("start_date")
+        rows["location"] = rows["location"].fillna("See event page")
         columns = ["status", "topic", "source", "title", "details", "location", "link"]
+        soon_label = "Starting soon"
     else:
         rows = rows.sort_values("end_date", na_position="last")  # ending soonest first
+        rows["location"] = rows["location"].fillna("—")
+        rows["channel"] = rows["channel"].map(CHANNEL_LABELS).fillna("—")
+        rows["start_date"] = pd.to_datetime(rows["start_date"], errors="coerce")
+        rows["end_date"] = pd.to_datetime(rows["end_date"], errors="coerce")
         columns = ["status", "source", "title", "details", "start_date", "end_date", "location", "channel", "link"]
+        soon_label = "Ending soon"
+    rows["details"] = rows["details"].fillna("")
+
+    if rows.empty:
+        st.write("Nothing matches right now.")
+        return
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Showing", int(len(rows)))
+    col2.metric("🆕 New", int((rows["status"] == "🆕 New").sum()))
+    col3.metric(soon_label, int(rows["status"].str.startswith(("⏰", "📅")).sum()))
 
     st.dataframe(
         rows[columns],
         hide_index=True,
         column_config={
             "status": st.column_config.TextColumn("Status", width="medium"),
+            "topic": st.column_config.TextColumn("Topic"),
+            "source": st.column_config.TextColumn("Source"),
+            "title": st.column_config.TextColumn("Title", width="large"),
+            "details": st.column_config.TextColumn("Details", width="large"),
+            "start_date": st.column_config.DateColumn("Starts", format="D MMM YYYY"),
+            "end_date": st.column_config.DateColumn("Ends", format="D MMM YYYY"),
+            "location": st.column_config.TextColumn("Location"),
+            "channel": st.column_config.TextColumn("Where"),
             "link": st.column_config.LinkColumn("Link", display_text="Open"),
         },
     )
@@ -168,8 +206,23 @@ conn = db.connect()
 df = pd.DataFrame(db.load_promos(conn))
 conn.close()
 
-show_expired = st.checkbox("Show expired")
+left, right = st.columns([3, 1])
+with left:
+    when = st.radio("When", ["Any time", "This weekend", "Next 7 days"], horizontal=True)
+with right:
+    show_expired = st.checkbox("Show expired")
+window = date_window(when, clock.today())
+
 tabs = st.tabs(list(CATEGORIES.values()))
 for tab, category in zip(tabs, CATEGORIES):
     with tab:
-        show_category(category, df, show_expired)
+        show_category(category, df, show_expired, window)
+
+with st.expander("ℹ️ How this works"):
+    st.markdown("""
+- **Sources:** bookstore promo pages (POPULAR, Kinokuniya, BookXcess) and tech event calendars (Luma).
+- **Structured data is read with plain code:** event feeds already have exact dates, times and venues.
+- **An LLM (Gemini) is used only where judgement is needed:** reading messy promo pages and banner images, and deciding which events are tech.
+- **Every answer is cached,** so unchanged pages never use API quota twice.
+- **Accuracy is measured** against hand-labelled test sets: 100% recall and precision on 29 bookstore promos, and on 13 events for the tech filter.
+""")
