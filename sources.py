@@ -30,4 +30,11 @@ SOURCES = [
         "tech_filter": True,  # mixed feed: ask Gemini which events are tech
         "url": "https://api.luma.com/ics/get?entity=discover&id=discplace-O15L1VZiYe0GYGm",
     },
+        {
+        "name": "Malaysian AI",
+        "category": "tech_event",
+        "type": "ical",
+        "tech_filter": True,
+        "url": "https://api.luma.com/ics/get?entity=calendar&id=cal-pPgkuwCFrycSv1Z",
+    },
 ]

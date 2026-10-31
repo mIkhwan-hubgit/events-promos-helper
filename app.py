@@ -12,7 +12,7 @@ from llm import extract_promos, pick_tech_events
 from sources import SOURCES
 
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
-COOLDOWN_HOURS = 6
+COOLDOWN_HOURS = 0
 CATEGORIES = {
     "bookstore_promo": "📚 Bookstore promos",
     "tech_event": "💻 Tech events",
@@ -25,6 +25,8 @@ st.title("📚 Malaysia Bookstore Promos & Tech Events")
 def process_source(source):
     if source["type"] == "ical":
         events = fetch_ical_events(source["url"])
+        if source.get("region"):
+            events = [e for e in events if source["region"] in f"{e['location'] or ''} {e['description']}"]
         if source.get("tech_filter"):
             events = pick_tech_events(events, source["name"])
         return [to_promo(e) for e in events]
@@ -62,6 +64,7 @@ def refresh(category):
                     continue  # same event already saved from another feed in this refresh
                 seen_links.add(p.link)
             row = p.model_dump(mode="json")
+            row.setdefault("topic", None)  # bookstore promos have no topic
             row["source"] = source["name"]
             row["category"] = source["category"]
             row["link"] = p.link or source["url"]
@@ -141,8 +144,12 @@ def show_category(category, df, show_expired):
         return
 
     if category == "tech_event":
+        topics = sorted(rows["topic"].dropna().unique()) if "topic" in rows else []
+        if topics:
+            chosen = st.multiselect("Topics", topics, default=topics, key="topics")
+            rows = rows[rows["topic"].isin(chosen) | rows["topic"].isna()]
         rows = rows.sort_values("start_date")
-        columns = ["status", "source", "title", "details", "location", "link"]
+        columns = ["status", "topic", "source", "title", "details", "location", "link"]
     else:
         rows = rows.sort_values("end_date", na_position="last")  # ending soonest first
         columns = ["status", "source", "title", "details", "start_date", "end_date", "location", "channel", "link"]

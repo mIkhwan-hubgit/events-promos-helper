@@ -33,6 +33,9 @@ def connect():
             category TEXT NOT NULL
         )
     """)
+    columns = [row["name"] for row in conn.execute("PRAGMA table_info(promos)")]
+    if "topic" not in columns:
+        conn.execute("ALTER TABLE promos ADD COLUMN topic TEXT")  # upgrade databases made before topics existed
     return conn
 
 
@@ -51,9 +54,9 @@ def start_refresh(conn, category):
 def save_promo(conn, row, run_time):
     conn.execute("""
         INSERT INTO promos (source, category, title, title_key, details, start_date, end_date,
-                            location, channel, link, first_seen, last_seen)
+                            location, channel, link, topic, first_seen, last_seen)
         VALUES (:source, :category, :title, :title_key, :details, :start_date, :end_date,
-                :location, :channel, :link, :run_time, :run_time)
+                :location, :channel, :link, :topic, :run_time, :run_time)
         ON CONFLICT(source, title_key) DO UPDATE SET
             title = excluded.title,
             details = excluded.details,
@@ -62,6 +65,7 @@ def save_promo(conn, row, run_time):
             location = excluded.location,
             channel = excluded.channel,
             link = excluded.link,
+            topic = excluded.topic,
             last_seen = excluded.last_seen
     """, {**row, "title_key": make_key(row["title"]), "run_time": run_time})
 

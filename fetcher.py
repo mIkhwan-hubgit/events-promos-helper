@@ -136,22 +136,36 @@ def parse_ical_events(data, after=None):
     calendar = Calendar.from_ical(data)
     events = []
     for item in calendar.walk("VEVENT"):
-        start = to_myt(item.decoded("DTSTART"))
-        end = to_myt(item.decoded("DTEND")) if item.get("DTEND") else start
+        raw_start = item.decoded("DTSTART")
+        all_day = not isinstance(raw_start, datetime)  # a date with no time
+        start = to_myt(raw_start)
+        if item.get("DTEND"):
+            raw_end = item.decoded("DTEND")
+            if all_day:
+                last_day = raw_end - timedelta(days=1)  # iCal all-day end dates are the day AFTER
+                end = datetime(last_day.year, last_day.month, last_day.day, 23, 59, tzinfo=MYT)
+            else:
+                end = to_myt(raw_end)
+        else:
+            end = start
         if after and end < after:
             continue  # already finished
 
         description = str(item.get("DESCRIPTION", ""))
+        location = str(item.get("LOCATION", "")).strip() or None
         uid = str(item.get("UID", ""))
         event_id = uid.split("@")[0]
+
         if event_id.startswith("evt-"):
             link = f"https://luma.com/event/{event_id}"  # Luma's permanent page for this exact event
+        elif location and location.startswith("http"):
+            link = location  # listed on Luma but hosted on another website
         else:
             match = LUMA_LINK.search(description)
             link = match.group(0) if match else None
-        location = str(item.get("LOCATION", "")).strip() or None
+
         if location and location.startswith("http"):
-            location = None  # venue hidden until you register
+            location = None  # a link, not a venue (hidden until you register, or hosted elsewhere)
         organizer = item.get("ORGANIZER")
 
         events.append({
@@ -159,6 +173,7 @@ def parse_ical_events(data, after=None):
             "title": str(item.get("SUMMARY", "")).strip(),
             "start": start,
             "end": end,
+            "all_day": all_day,
             "location": location,
             "link": link,
             "host": organizer.params.get("CN") if organizer is not None else None,

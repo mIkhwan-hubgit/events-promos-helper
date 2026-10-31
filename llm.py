@@ -11,7 +11,7 @@ from google import genai
 from google.genai import errors
 from google.genai import types
 
-from schema import Promo
+from schema import Promo, TechPick
 
 load_dotenv()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -117,6 +117,10 @@ digital product design, developer communities, hackathons, or technology-focused
 Not tech events: fitness, food and drink, art and crafts, music and dance, general social
 mixers, and business events where technology is not the main focus.
 
+For each tech event, also give its main topic. Only use the Startup topic for events mainly about
+building technology products or tech companies. Choosing a topic does not change the rule above:
+founder, business and funding events where technology is not the main focus are still not tech events.
+
 {items}
 """
 
@@ -130,11 +134,18 @@ def pick_tech_events(events, source):
     cache_file = CACHE_DIR / f"tech_{hashlib.sha256(prompt.encode('utf-8')).hexdigest()}.json"
     if cache_file.exists():
         print(f"{source}: events unchanged, using cached result")
-        keep = json.loads(cache_file.read_text(encoding="utf-8"))
+        picks = json.loads(cache_file.read_text(encoding="utf-8"))
     else:
-        keep, model_used = call_gemini(prompt, source, schema=list[int])
+        result, model_used = call_gemini(prompt, source, schema=list[TechPick])
+        picks = [p.model_dump(mode="json") for p in result]
         if model_used == MODEL:  # same rule as before: don't cache fallback answers
             CACHE_DIR.mkdir(exist_ok=True)
-            cache_file.write_text(json.dumps(keep), encoding="utf-8")
+            cache_file.write_text(json.dumps(picks), encoding="utf-8")
 
-    return [events[i] for i in sorted(set(keep)) if 0 <= i < len(events)]
+    chosen, seen = [], set()
+    for pick in picks:
+        i = pick["index"]
+        if 0 <= i < len(events) and i not in seen:
+            seen.add(i)
+            chosen.append({**events[i], "topic": pick["topic"]})
+    return chosen

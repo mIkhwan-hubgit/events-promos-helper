@@ -1,12 +1,17 @@
-from schema import Promo
+from schema import EventItem
 
 
 def to_promo(event):
     start, end = event["start"], event["end"]
-    when = f"{start:%a %d %b, %I:%M %p}"
-    when += f" to {end:%I:%M %p}" if end.date() == start.date() else f" to {end:%a %d %b}"
+    if event.get("all_day"):
+        same_day = start.date() == end.date()
+        when = f"{start:%a %d %b}" if same_day else f"{start:%a %d %b} to {end:%a %d %b}"
+        when += " (all day)"
+    else:
+        when = f"{start:%a %d %b, %I:%M %p}"
+        when += f" to {end:%I:%M %p}" if end.date() == start.date() else f" to {end:%a %d %b}"
     details = when + (f" · Hosted by {event['host']}" if event["host"] else "")
-    return Promo(
+    return EventItem(
         title=event["title"],
         details=details,
         start_date=start.date().isoformat(),
@@ -14,4 +19,5 @@ def to_promo(event):
         location=event["location"],
         channel=None,
         link=event["link"],
+        topic=event.get("topic"),
     )
