@@ -93,7 +93,7 @@ Python · Streamlit · Google Gemini (`google-genai`) · Pydantic · SQLite · p
 ## Run it locally (Windows)
 
 ```powershell
-git clone https://github.com/mlkhwan-hubgit/bookstore-promos.git
+git clone https://github.com/mIkhwan-hubgit/bookstore-promos.git
 cd bookstore-promos
 python -m venv .venv
 .venv\Scripts\activate
