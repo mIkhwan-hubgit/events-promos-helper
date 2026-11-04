@@ -1,6 +1,6 @@
 # Malaysia Bookstore Promos & Tech Events Tracker
 
-A personal dashboard that collects **bookstore promotions** (POPULAR, Kinokuniya, BookXcess) and **tech events in Kuala Lumpur** (from Luma community calendars) into one place, and refreshes them on demand.
+A personal dashboard that collects **book promotions and sales** (POPULAR, Kinokuniya, BookXcess, Big Bad Wolf) and **tech events in Kuala Lumpur** (Luma community calendars and dev.events) into one place, and refreshes them on demand.
 
 It uses an LLM (Google Gemini) only where judgement is needed — reading messy promo pages and banner images, and deciding which events are tech — and plain code everywhere else. Its accuracy is measured against hand-labelled test sets.
 
@@ -26,9 +26,12 @@ It uses an LLM (Google Gemini) only where judgement is needed — reading messy 
 flowchart LR
     A["POPULAR & BookXcess<br/>promo pages"] --> F["Fetchers"]
     B["Kinokuniya Atom feed<br/>+ banner images"] --> F
+    H["Big Bad Wolf Atom feed"] --> F
     C["Luma iCal feeds"] --> P["Plain-code parser<br/>exact dates, times, venues"]
+    E["dev.events<br/>JSON-LD event data"] --> P
     F --> G["Gemini<br/>extract promos as structured JSON"]
     P --> T["Gemini<br/>tech or not? + topic"]
+    P -->|"dev.events: topic read by code"| D
     G --> K[("Cache")]
     T --> K
     G --> D[("SQLite")]
@@ -41,7 +44,9 @@ flowchart LR
 | POPULAR | HTML page | Page text → Gemini extracts promos |
 | BookXcess | HTML page | Page text → Gemini extracts promos |
 | Kinokuniya | Shopify Atom feed | Feed text + each post's banner image (`og:image`) → Gemini |
+| Big Bad Wolf | Shopify Atom feed | Same as Kinokuniya; posts about sales in other countries are skipped |
 | DevMalaysia, Malaysian AI, Luma KL | iCal feeds | Parsed with code; Gemini only filters for tech and adds a topic |
+| dev.events | JSON-LD in the page | Parsed with code, including the topic — no LLM at all |
 
 ## Accuracy
 
@@ -70,6 +75,10 @@ All four promos missed by the baseline were offers shown only in banner images.
 - **Refresh cooldown** of 6 hours on the public app, to protect the free API quota and the stores' websites.
 - **Malaysia time everywhere.** Feeds and cloud servers use UTC; all dates are converted to UTC+8 in one place (`clock.py`).
 - **Database migrations** instead of deleting data when the structure changes.
+- **Stable identity for items the LLM describes differently each run.** Events are matched by their permanent event link across all feeds; promos are matched by near-identical titles within the same store.
+- **A weaker answer never erases good data.** When a refresh returns an empty field (e.g. no end date), the value already stored is kept.
+- **Tests pin the model.** The accuracy tests refuse to use the fallback model, so a busy main model can't silently produce scores for a different model.
+- **Check a source before adding it.** Each new source was probed first for freshness and structure; one working feed (Gerakbudaya) was rejected because its newest post was from 2023.
 
 ## Lessons learned (bugs found and fixed)
 
@@ -79,6 +88,10 @@ All four promos missed by the baseline were offers shown only in banner images.
 - **The answer sheet was wrong too** — the model read "25%" from a banner where my hand-written label said 15%. Every disagreement is checked against the source, in both directions.
 - **A regression from an unrelated prompt change** — adding topic tags (including a "Startup" topic) made the tech filter start including startup events. The regression test caught it; a one-line prompt fix restored the original behaviour.
 - **Silent failures** — a model reply in the wrong format used to become "zero promos" with no warning. Now it's retried, logged with the source and model name, and shown to the user.
+- **Duplicates that only appeared over time** — the model words titles slightly differently between runs ("Special RM5 Rebate" vs "Special RM5 Rebate [Use promo code: BXFIRST]"), and the same event appears in several feeds, so the table slowly filled with duplicates. None of this showed up in single-run testing.
+- **A weaker answer overwrote a correct one** — when the fallback model missed an end date that the main model had read from a banner, saving the new answer erased the date. Now empty values never replace known ones.
+- **A regression test that tested the wrong model** — on a busy day every answer came from the fallback model, so the scores dropped for reasons unrelated to the prompt change being tested. Tests now pin the main model.
+- **Using an LLM where it wasn't needed** — dev.events only lists tech events, but the LLM tech filter dropped 3 of its 4 conferences. Its topics are now read from the event description with simple code.
 
 ## Limitations
 
@@ -126,7 +139,7 @@ python eval_events_run.py   # tech-event filter
 ```
 app.py                  Streamlit app: tabs, filters, refresh
 sources.py              List of sources (name, category, type, URL, options)
-fetcher.py              HTML, Atom feed, banner image and iCal fetching
+fetcher.py              HTML, Atom feed, banner image, iCal and JSON-LD fetching
 llm.py                  Gemini calls: promo extraction, tech filter, cache, retries
 schema.py               Pydantic models and enums (Promo, Channel, Topic)
 events.py               Turns calendar events into table rows
@@ -141,3 +154,4 @@ eval/                   Frozen page snapshots and hand-labelled answer sheets
 - Banner reading for MPH and BookXcess homepages
 - Larger, rolling test sets (a new labelled snapshot every few weeks)
 - More non-AI event sources (e.g. GDG Kuala Lumpur's DevFest)
+- New tabs for orchestra & classical concerts, hobby workshops and video game events (CloudJoi and others)
