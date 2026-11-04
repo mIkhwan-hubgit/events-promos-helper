@@ -7,14 +7,15 @@ import streamlit as st
 import clock
 import db
 from events import to_promo
-from fetcher import fetch_feed_text, fetch_ical_events, fetch_text
+from fetcher import fetch_feed_text, fetch_ical_events, fetch_text, fetch_jsonld_events
 from llm import extract_promos, pick_tech_events
 from sources import SOURCES
 
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
+EVENT_FETCHERS = {"ical": fetch_ical_events, "jsonld": fetch_jsonld_events}
 COOLDOWN_HOURS = 6
 CATEGORIES = {
-    "bookstore_promo": "📚 Bookstore promos",
+    "bookstore_promo": "📚 Books",
     "tech_event": "💻 Tech events",
 }
 CHANNEL_LABELS = {"in_store": "In store", "online": "Online", "both": "In store & online"}
@@ -24,8 +25,8 @@ st.title("📚 Malaysia Bookstore Promos & Tech Events")
 
 
 def process_source(source):
-    if source["type"] == "ical":
-        events = fetch_ical_events(source["url"])
+    if source["type"] in EVENT_FETCHERS:
+        events = EVENT_FETCHERS[source["type"]](source["url"])
         if source.get("region"):
             events = [e for e in events if source["region"] in f"{e['location'] or ''} {e['description']}"]
         if source.get("tech_filter"):
@@ -54,13 +55,13 @@ def refresh(category):
             problems.append(f"Couldn't update {source['name']}: {e}")
             continue
         if not promos:
-            if source["type"] != "ical":  # an empty event calendar is normal, not a failure
+            if source["type"] not in EVENT_FETCHERS:  # an empty event calendar is normal, not a failure
                 problems.append(f"{source['name']}: nothing found this time. The model may have failed, so previously saved results are kept.")
             continue
         if run_time is None:
             run_time = db.start_refresh(conn, category)  # only count the refresh once a source actually worked
         for p in promos:
-            if source["type"] == "ical":
+            if source["type"] in EVENT_FETCHERS:
                 if p.link and p.link in seen_links:
                     continue  # same event already saved from another feed in this refresh
                 seen_links.add(p.link)
@@ -90,7 +91,9 @@ def status(row, info, today):
             days = (start - today).days
             if days == 0:
                 return "📅 Today"
-            if 0 < days <= 3:
+            if days == 1:
+                return "📅 Tomorrow"
+            if 1 < days <= 3:
                 return f"📅 In {days} days"
         return ""
     end = parse_date(row["end_date"])
@@ -100,6 +103,8 @@ def status(row, info, today):
             return "Expired"
         if days_left == 0:
             return "⏰ Ends today"
+        if days_left == 1:
+            return "⏰ Ends tomorrow"
         if days_left <= 3:
             return f"⏰ Ends in {days_left} days"
     return ""

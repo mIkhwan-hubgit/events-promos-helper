@@ -35,6 +35,7 @@ Rules:
 - channel: where the offer can be used. "in_store" = at physical stores or a physical event (a bookfair, a named store or mall). "online" = online orders (e.g. "valid for webstore orders", a promo code entered at checkout, e-gift cards, items you add to cart). "both" = clearly both. Use null if the text and images don't make it clear. Do not guess, and never put a place name here; that belongs in location.
 - If the text gives a link for a promotion, put it in link.
 - Some posts come with a banner image, labelled with the post's title. Read the text in each image too. If an image shows an offer (such as a discount), include it in that promotion, even when the post text doesn't mention it.
+- Only include promotions and events in Malaysia or available to Malaysian customers. Skip ones in other countries.
 - If something is not stated, use null. Never make up details.
 - If the same offer appears more than once (e.g. the same promo code in two places), list it only once.
 
@@ -43,8 +44,8 @@ Page text from {source}:
 """
 
 
-def call_gemini(contents, source, schema=list[Promo], retries=3):
-    models = [MODEL] + ([FALLBACK_MODEL] if FALLBACK_MODEL else [])
+def call_gemini(contents, source, schema=list[Promo], allow_fallback=True, retries=3):
+    models = [MODEL] + ([FALLBACK_MODEL] if FALLBACK_MODEL and allow_fallback else [])
 
     for model in models:
         for attempt in range(retries):
@@ -78,7 +79,7 @@ def call_gemini(contents, source, schema=list[Promo], retries=3):
     raise RuntimeError("Gemini is unavailable right now (busy, or the daily free limit is used up). Try again later.")
 
 
-def extract_promos(source, text, images=None):
+def extract_promos(source, text, images=None, allow_fallback=True):
     images = images or []
     prompt = PROMPT.format(today=clock.today().isoformat(), source=source, text=text)
 
@@ -97,7 +98,7 @@ def extract_promos(source, text, images=None):
         contents.append(f"Banner image for the post titled: {img['label']}")
         contents.append(types.Part.from_bytes(data=img["data"], mime_type=img["mime"]))
 
-    promos, model_used = call_gemini(contents, source)
+    promos, model_used = call_gemini(contents, source, allow_fallback=allow_fallback)
     if not promos:
         return promos  # don't cache empty results, they're probably a mistake
     if model_used != MODEL:
@@ -125,7 +126,7 @@ founder, business and funding events where technology is not the main focus are 
 """
 
 
-def pick_tech_events(events, source):
+def pick_tech_events(events, source, allow_fallback=True):
     if not events:
         return []
     items = "\n\n".join(f"{i}. {e['title']}\n{e['description'][:600]}" for i, e in enumerate(events))
@@ -136,7 +137,7 @@ def pick_tech_events(events, source):
         print(f"{source}: events unchanged, using cached result")
         picks = json.loads(cache_file.read_text(encoding="utf-8"))
     else:
-        result, model_used = call_gemini(prompt, source, schema=list[TechPick])
+        result, model_used = call_gemini(prompt, source, schema=list[TechPick], allow_fallback=allow_fallback)
         picks = [p.model_dump(mode="json") for p in result]
         if model_used == MODEL:  # same rule as before: don't cache fallback answers
             CACHE_DIR.mkdir(exist_ok=True)

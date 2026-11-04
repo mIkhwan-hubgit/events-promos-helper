@@ -18,6 +18,12 @@ SOURCES = [
         "url": "https://www.bookxcess.com/",
     },
     {
+        "name": "Big Bad Wolf",
+        "category": "bookstore_promo",
+        "type": "feed",
+        "url": "https://www.bigbadwolfbooks.com/blogs/news.atom",
+    },
+    {
         "name": "DevMalaysia",
         "category": "tech_event",
         "type": "ical",
@@ -29,6 +35,13 @@ SOURCES = [
         "type": "ical",
         "tech_filter": True,  # mixed feed: ask Gemini which events are tech
         "url": "https://api.luma.com/ics/get?entity=discover&id=discplace-O15L1VZiYe0GYGm",
+    },
+    {
+        "name": "dev.events",
+        "category": "tech_event",
+        "type": "jsonld",
+        "region": "Malaysia",
+        "url": "https://dev.events/meetups/AS/MY/Kuala_Lumpur",
     },
         {
         "name": "Malaysian AI",

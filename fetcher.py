@@ -184,3 +184,66 @@ def parse_ical_events(data, after=None):
 
 def fetch_ical_events(url):
     return parse_ical_events(fetch_ical_bytes(url), after=datetime.now(MYT))
+
+def parse_jsonld_time(value):
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+TOPIC_WORDS = [  # checked in order; the first match wins
+    ("Security", ["security", "infosec", "cyber"]),
+    ("Cloud & DevOps", ["cloud", "devops", "kubernetes"]),
+    ("Data", ["data", "analytics"]),
+    ("AI", ["artificial intelligence", "(ai)", " ai ", "machine learning"]),
+    ("Web & Mobile", ["web", "mobile", "javascript", "android", "ios"]),
+    ("Design", ["design", "ux"]),
+]
+
+def topic_from_text(text):
+    lowered = f" {text.lower()} "
+    for topic, words in TOPIC_WORDS:
+        if any(word in lowered for word in words):
+            return topic
+    return "Other tech"
+
+def fetch_jsonld_events(url):
+    response = requests.get(url, headers=HEADERS, timeout=20)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    now = datetime.now(MYT)
+    events = []
+    for block in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(block.string or "")
+        except json.JSONDecodeError:
+            continue
+        for item in data if isinstance(data, list) else [data]:
+            if not isinstance(item, dict) or not str(item.get("@type", "")).endswith("Event"):
+                continue  # breadcrumbs and other non-event data
+            if "Online" in str(item.get("eventAttendanceMode", "")):
+                continue  # online events are listed on every city page, not just Malaysia's
+
+            raw_start = parse_jsonld_time(item["startDate"])
+            raw_end = parse_jsonld_time(item.get("endDate") or item["startDate"])
+            all_day = (raw_start.hour, raw_start.minute) == (0, 0) and (raw_end.hour, raw_end.minute) == (0, 0)
+            if all_day:  # dates given as midnight UTC really mean whole days
+                start = datetime(raw_start.year, raw_start.month, raw_start.day, tzinfo=MYT)
+                end = datetime(raw_end.year, raw_end.month, raw_end.day, 23, 59, tzinfo=MYT)  # end date is inclusive here
+            else:
+                start, end = raw_start.astimezone(MYT), raw_end.astimezone(MYT)
+            if end < now:
+                continue  # already finished
+
+            place = item.get("location") if isinstance(item.get("location"), dict) else {}
+            events.append({
+                "uid": item.get("url") or item["name"],
+                "title": item["name"],
+                "start": start,
+                "end": end,
+                "all_day": all_day,
+                "location": place.get("name"),
+                "link": item.get("url"),
+                "host": None,
+                "description": item.get("description", ""),
+                "topic": topic_from_text(item.get("description", "")),
+            })
+    return events

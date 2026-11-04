@@ -50,7 +50,7 @@ totals = {"expected": 0, "predicted": 0, "found": 0, "dates_ok": 0, "mentions_ok
 
 for source, expected in expected_all.items():
     text = (EVAL_DIR / "pages" / f"{source}.txt").read_text(encoding="utf-8")
-    predicted = extract_promos(source, text, load_images(source))
+    predicted = extract_promos(source, text, load_images(source), allow_fallback=False)
     matches, used = match(expected, predicted)
     print(f"\n===== {source} =====")
 

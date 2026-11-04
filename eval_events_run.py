@@ -15,7 +15,7 @@ def pct(a, b):
 
 
 events = parse_ical_events((EVENTS_DIR / "luma_kl.ics").read_bytes())
-picked = {e["title"] for e in pick_tech_events(events, "Luma KL (eval)")}
+picked = {e["title"] for e in pick_tech_events(events, "Luma KL (eval)", allow_fallback=False)}
 should = {title for title, is_tech in expected.items() if is_tech}
 
 for title, is_tech in expected.items():

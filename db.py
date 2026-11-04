@@ -2,6 +2,8 @@ import sqlite3
 
 import clock
 
+from difflib import SequenceMatcher
+
 DB_PATH = "promos.db"
 
 
@@ -50,8 +52,29 @@ def start_refresh(conn, category):
     conn.commit()
     return now
 
+def find_existing(conn, row):
+    """Return (source, title_key) of a row that's really the same item, or this row's own key."""
+    # Events: the same event link means the same event, whichever feed it came from
+    if row["category"] != "bookstore_promo" and row.get("link"):
+        hit = conn.execute(
+            "SELECT source, title_key FROM promos WHERE category = ? AND link = ?",
+            (row["category"], row["link"]),
+        ).fetchone()
+        if hit:
+            return hit["source"], hit["title_key"]
+
+    # Promos: the LLM words titles slightly differently between runs, so match close titles
+    key = make_key(row["title"])
+    for existing in conn.execute("SELECT title_key FROM promos WHERE source = ?", (row["source"],)):
+        other = existing["title_key"]
+        shorter = min(key, other, key=len)
+        contains = len(shorter) >= 12 and (key in other or other in key)
+        if other == key or contains or SequenceMatcher(None, key, other).ratio() >= 0.85:
+            return row["source"], other
+    return row["source"], key
 
 def save_promo(conn, row, run_time):
+    source, title_key = find_existing(conn, row)
     conn.execute("""
         INSERT INTO promos (source, category, title, title_key, details, start_date, end_date,
                             location, channel, link, topic, first_seen, last_seen)
@@ -59,15 +82,15 @@ def save_promo(conn, row, run_time):
                 :location, :channel, :link, :topic, :run_time, :run_time)
         ON CONFLICT(source, title_key) DO UPDATE SET
             title = excluded.title,
-            details = excluded.details,
-            start_date = excluded.start_date,
-            end_date = excluded.end_date,
-            location = excluded.location,
-            channel = excluded.channel,
-            link = excluded.link,
-            topic = excluded.topic,
+            details = COALESCE(excluded.details, promos.details),
+            start_date = COALESCE(excluded.start_date, promos.start_date),
+            end_date = COALESCE(excluded.end_date, promos.end_date),
+            location = COALESCE(excluded.location, promos.location),
+            channel = COALESCE(excluded.channel, promos.channel),
+            link = COALESCE(excluded.link, promos.link),
+            topic = COALESCE(excluded.topic, promos.topic),
             last_seen = excluded.last_seen
-    """, {**row, "title_key": make_key(row["title"]), "run_time": run_time})
+    """, {**row, "source": source, "title_key": title_key, "run_time": run_time})
 
 
 def load_promos(conn):
