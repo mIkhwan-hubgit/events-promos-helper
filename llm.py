@@ -177,7 +177,7 @@ Leave out every event that is neither.
 def classify_events(events, source, allow_fallback=True):
     if not events:
         return []
-    items = "\n\n".join(f"{i}. {e['title']}\n{e['description'][:400]}" for i, e in enumerate(events))
+    items = "\n\n".join(f"{i}. {e['title']}\n{e['description'][:800]}" for i, e in enumerate(events))
     prompt = EVENT_PROMPT.format(items=items)
 
     cache_file = CACHE_DIR / f"kinds_{hashlib.sha256((MODEL + prompt).encode('utf-8')).hexdigest()}.json"

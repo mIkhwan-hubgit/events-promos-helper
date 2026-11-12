@@ -1,3 +1,4 @@
+import html
 import hashlib
 import json
 import re
@@ -248,6 +249,28 @@ def fetch_jsonld_events(url):
             })
     return events
 
+CLOUDJOI_CACHE = Path(".cache/cloudjoi")
+DETAIL_CATEGORIES = {"Music", "Concert", "Event", "Exhibition"}  # vague categories worth reading the event page for
+
+
+def cloudjoi_page_summary(link):
+    """The event's own summary, read once from its page and then kept forever."""
+    cache_file = CLOUDJOI_CACHE / f"{hashlib.sha256(link.encode('utf-8')).hexdigest()}.txt"
+    if cache_file.exists():
+        return html.unescape(cache_file.read_text(encoding="utf-8"))
+    time.sleep(1)  # be polite: at most one page per second
+    try:
+        response = requests.get(link, headers=HEADERS, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException:
+        return ""  # one unreadable page shouldn't stop the others; not cached, so it's retried next time
+    soup = BeautifulSoup(response.text, "html.parser")
+    tag = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"property": "og:description"})
+    summary = " ".join((tag.get("content") or "").split()) if tag else ""
+    CLOUDJOI_CACHE.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(summary, encoding="utf-8")
+    return html.unescape(summary)
+
 def fetch_cloudjoi_events(url):
     response = requests.get(url, headers=HEADERS, timeout=20)
     response.raise_for_status()
@@ -289,6 +312,12 @@ def fetch_cloudjoi_events(url):
 
             categories = ", ".join(item.get("categories") or [])
             genres = ", ".join(item.get("genres") or [])
+            link = f"https://www.cloudjoi.com/shows/{item['slug']}"
+            description = f"Category: {categories}. Genres: {genres}. Venue: {location or 'unknown'}."
+            if set(item.get("categories") or []) & DETAIL_CATEGORIES:
+                summary = cloudjoi_page_summary(link)
+                if summary:
+                    description += f" About: {summary}"
             events.append({
                 "uid": f"cloudjoi-{item.get('id')}",
                 "title": item["title"].strip(),
@@ -296,9 +325,9 @@ def fetch_cloudjoi_events(url):
                 "end": end,
                 "all_day": False,
                 "location": location,
-                "link": f"https://www.cloudjoi.com/shows/{item['slug']}",
+                "link": link,
                 "host": None,
                 "price": price,
-                "description": f"Category: {categories}. Genres: {genres}. Venue: {location or 'unknown'}.",
+                "description": description,
             })
     return events

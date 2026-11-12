@@ -25,3 +25,14 @@ Recall 4/4 = 100% | Precision 4/5 = 80%
   The prompt fix that solved this on gemini-flash-latest doesn't fully hold on gemini-3.6-flash.
 - Decision: not changing the prompt again for one borderline event. That would be overfitting
   a 13-event test set. Revisit once the test set is bigger.
+## 13 Nov 2026: orchestra/workshop classifier test set (gemini-3.6-flash)
+90 CloudJoi events, labelled from the event pages before running the model.
+Label fixes after checking pages: Etsy 101, public speaking bootcamp, D&D, Huayuetuan talk,
+Rainforest Wellness Weekend, Simple Mind workshop, Holiday Playground -> none (rules say no
+business/career courses, games nights, talks or fairs). Mini Paint Jam -> workshop.
+
+Before (homepage data only): orchestra recall 1/4, precision 100% | workshop recall 7/7, precision 100%
+Problem: for "The 9th" the model only saw "Category: Music". Missing information, not bad reasoning.
+Fix: read each vague-category event's page summary once and cache it forever.
+After: orchestra recall 3/4, precision 100% | workshop recall 7/7, precision 100% | overall 89/90
+Remaining: Calista Lim (opera + Broadway recital, borderline). Mini Paint Jam: [what its summary says].
