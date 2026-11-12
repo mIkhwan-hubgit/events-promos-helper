@@ -49,14 +49,15 @@ def concerts_to_events(concerts, page_url, venue):
 
 def to_promo(event):
     start, end = event["start"], event["end"]
+    day = "%a %d %b" if start.year == clock.today().year else "%a %d %b %Y"  # add the year only when it isn't this year
     if event.get("all_day"):
         same_day = start.date() == end.date()
-        when = f"{start:%a %d %b}" if same_day else f"{start:%a %d %b} to {end:%a %d %b}"
+        when = f"{start:{day}}" if same_day else f"{start:{day}} to {end:{day}}"
         when += " (all day)"
     else:
-        when = f"{start:%a %d %b, %I:%M %p}"
+        when = f"{start:{day}, %I:%M %p}"
         if end.date() != start.date():
-            when += f" to {end:%a %d %b}"
+            when += f" to {end:{day}}"
         elif end > start:
             when += f" to {end:%I:%M %p}"
 

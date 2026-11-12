@@ -15,7 +15,7 @@ from sources import SOURCES
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
 EVENT_FETCHERS = {"ical": fetch_ical_events, "jsonld": fetch_jsonld_events, "cloudjoi": fetch_cloudjoi_events}
 EMPTY_IS_NORMAL = set(EVENT_FETCHERS) | {"concert_page"}  # sources where finding nothing isn't a failure
-COOLDOWN_HOURS = 0
+COOLDOWN_HOURS = 6
 CATEGORIES = {
     "bookstore_promo": "📚 Books",
     "tech_event": "💻 Tech events",
@@ -195,7 +195,8 @@ def show_category(category, df, show_expired, window):
                 rows = rows[rows["topic"].isin(chosen) | rows["topic"].isna()]
         rows = rows.sort_values("start_date")
         rows["location"] = rows["location"].fillna("See event page")
-        columns = ["status"] + (["topic"] if category == "tech_event" else []) + ["source", "title", "details", "location", "link"]
+        rows["start_date"] = pd.to_datetime(rows["start_date"], errors="coerce")  # a real date, so it sorts by date, not text
+        columns = ["status"] + (["topic"] if category == "tech_event" else []) + ["start_date", "source", "title", "details", "location", "link"]
         soon_label = "Starting soon"
     else:
         rows = rows.sort_values("end_date", na_position="last")  # ending soonest first
