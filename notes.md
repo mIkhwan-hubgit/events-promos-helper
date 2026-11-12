@@ -8,3 +8,20 @@ Precision 4/4 = 100% | Recall 4/4 = 100% (13 events, labelled blind before runni
 Rule: tech = mainly about software, AI, data, security, hardware, digital design, or a dev community;
 startup/business events only if tech is the main focus. Startup School labelled not tech because [your reason].
 Caveat: small set, only 4 tech events and 1 borderline case. Most cases were easy (dance vs. AI agents).
+## 12 Nov 2026: switched to a pinned model
+Main model: gemini-3.6-flash | Fallback: gemini-3.5-flash-lite
+Why: gemini-flash-latest (a nickname that always points to the newest Flash) was overloaded for days,
+and a nickname can change model without warning. Pinned a specific model instead.
+Also added the model name to the cache key, so a different model's answers are never reused.
+
+Bookstore promos (29 promos, 11 Oct snapshot + banner images)
+Recall 100% | Precision 100% | Dates 100% | Key details 100% | Channel 28/29 = 97%
+- Only error: MADANI voucher channel. The model says "online"; the sheet says null, because the page
+  only says the voucher is obtained "Via Kota Buku". A judgement call, not a clear mistake.
+
+Tech filter (13 Luma KL events, labelled before running)
+Recall 4/4 = 100% | Precision 4/5 = 80%
+- Only error: Startup School Malaysia 2026 picked as tech (my label: not tech).
+  The prompt fix that solved this on gemini-flash-latest doesn't fully hold on gemini-3.6-flash.
+- Decision: not changing the prompt again for one borderline event. That would be overfitting
+  a 13-event test set. Revisit once the test set is bigger.

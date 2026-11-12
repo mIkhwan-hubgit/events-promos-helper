@@ -1,3 +1,7 @@
+from clock import today
+
+THIS_YEAR = today().year
+
 SOURCES = [
     {
         "name": "POPULAR",
@@ -58,4 +62,14 @@ SOURCES = [
         "classify": True,
         "url": "https://www.cloudjoi.com/",
     },
+    *[  # this season and next; the page for a new year is picked up automatically
+        {
+            "name": "MPO",
+            "category": "orchestra",
+            "type": "concert_page",
+            "venue": "Dewan Filharmonik Petronas, KLCC",
+            "url": f"https://www.mpo.com.my/season-{year}",
+        }
+        for year in (THIS_YEAR, THIS_YEAR + 1)
+    ],
 ]

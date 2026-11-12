@@ -11,7 +11,7 @@ from google import genai
 from google.genai import errors
 from google.genai import types
 
-from schema import EventPick, Promo, TechPick
+from schema import Concert, EventPick, Promo, TechPick
 
 load_dotenv()
 client = genai.Client(
@@ -198,3 +198,37 @@ def classify_events(events, source, allow_fallback=True):
             seen.add(i)
             chosen.append({**events[i], "category": pick["kind"]})
     return chosen
+
+CONCERT_PROMPT = """Below is the text of a concert season page. List every concert on it.
+
+For each concert give:
+- title: exactly as written on the page
+- start_date: date of the first performance, as YYYY-MM-DD
+- end_date: date of the last performance, as YYYY-MM-DD (the same as start_date if there is only one)
+- time: start time of the first performance in 24-hour HH:MM, or null if not stated
+- info: a short note with the style label (e.g. Classical, Pops, Chamber) and the main conductor
+  or soloist, if stated. Add "Sold out" if the page says so.
+
+Rules:
+- Ignore menus, buttons and links such as "VIEW HERE".
+- "20 - 23 NOV 2026" means start_date 2026-11-20 and end_date 2026-11-23.
+- Use only what the page says. If something is not stated, use null. Never make anything up.
+
+Page text:
+{text}
+"""
+
+
+def extract_concerts(source, text, allow_fallback=True):
+    prompt = CONCERT_PROMPT.format(text=text)
+    cache_file = CACHE_DIR / f"concerts_{hashlib.sha256((MODEL + prompt).encode('utf-8')).hexdigest()}.json"
+    if cache_file.exists():
+        print(f"{source}: page unchanged, using cached result")
+        return json.loads(cache_file.read_text(encoding="utf-8"))
+
+    result, model_used = call_gemini(prompt, source, schema=list[Concert], allow_fallback=allow_fallback)
+    concerts = [c.model_dump(mode="json") for c in result]
+    if concerts and model_used == MODEL:  # same rules as promos: cache only non-empty main-model answers
+        CACHE_DIR.mkdir(exist_ok=True)
+        cache_file.write_text(json.dumps(concerts, ensure_ascii=False), encoding="utf-8")
+    return concerts

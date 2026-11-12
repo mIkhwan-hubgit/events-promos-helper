@@ -50,6 +50,8 @@ flowchart LR
 
 ## Accuracy
 
+Scores are for `gemini-3.6-flash` (fallback: `gemini-3.5-flash-lite`). Each model is measured separately, because different models draw borderline lines differently.
+
 Measured with frozen snapshots of the source pages and hand-labelled answer sheets (`eval/`).
 
 **Bookstore promos** — 29 promos, 3 stores (snapshot from 11 Oct 2026):
@@ -61,7 +63,7 @@ Measured with frozen snapshots of the source pages and hand-labelled answer shee
 
 All four promos missed by the baseline were offers shown only in banner images.
 
-**Tech-event filter** — 13 events from the Luma KL feed, labelled *before* seeing the model's answers: **100% precision, 100% recall** (4 tech events).
+**Tech-event filter** (13 events from the Luma KL feed, labelled *before* seeing the model's answers): **100% recall, 80% precision** (4 tech events). The one error is a borderline startup event.
 
 **Caveats:** these are small test sets from single snapshots. 100% means "no errors found on this set", not "never wrong". The fallback model (used when the main model is busy) is measurably less accurate — it missed 1 of 3 BookXcess promos in one run.
 

@@ -43,3 +43,10 @@ class EventKind(str, Enum):
 class EventPick(BaseModel):
     index: int
     kind: EventKind
+
+class Concert(BaseModel):
+    title: str
+    start_date: Optional[str]
+    end_date: Optional[str]
+    time: Optional[str]
+    info: Optional[str]

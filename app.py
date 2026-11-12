@@ -4,15 +4,17 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
+import requests
 import clock
 import db
-from events import to_promo
+from events import concerts_to_events, to_promo
 from fetcher import fetch_cloudjoi_events, fetch_feed_text, fetch_ical_events, fetch_jsonld_events, fetch_text
-from llm import classify_events, extract_promos, pick_tech_events
+from llm import classify_events, extract_promos, pick_tech_events, extract_concerts
 from sources import SOURCES
 
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
 EVENT_FETCHERS = {"ical": fetch_ical_events, "jsonld": fetch_jsonld_events, "cloudjoi": fetch_cloudjoi_events}
+EMPTY_IS_NORMAL = set(EVENT_FETCHERS) | {"concert_page"}  # sources where finding nothing isn't a failure
 COOLDOWN_HOURS = 0
 CATEGORIES = {
     "bookstore_promo": "📚 Books",
@@ -31,6 +33,15 @@ def sources_for(category):
 
 
 def process_source(source):
+    if source["type"] == "concert_page":
+          try:
+              text, _ = fetch_text(source["url"])
+          except requests.HTTPError as e:
+              if e.response is not None and e.response.status_code == 404:
+                  return []  # next season's page isn't published yet
+              raise
+          concerts = extract_concerts(source["name"], text)
+          return [to_promo(e) for e in concerts_to_events(concerts, source["url"], source["venue"])]
     if source["type"] in EVENT_FETCHERS:
         events = EVENT_FETCHERS[source["type"]](source["url"])
         if source.get("region"):
@@ -65,7 +76,7 @@ def refresh(category):
             problems.append(f"Couldn't update {source['name']}: {e}")
             continue
         if not promos:
-            if source["type"] not in EVENT_FETCHERS:  # an empty event calendar is normal, not a failure
+            if source["type"] not in EMPTY_IS_NORMAL:
                 problems.append(f"{source['name']}: nothing found this time. The model may have failed, so previously saved results are kept.")
             continue
         if run_time is None:
