@@ -11,10 +11,17 @@ from google import genai
 from google.genai import errors
 from google.genai import types
 
-from schema import Promo, TechPick
+from schema import EventPick, Promo, TechPick
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+client = genai.Client(
+    api_key=os.getenv("GEMINI_API_KEY"),
+    http_options=types.HttpOptions(
+        api_version="v1beta",  # the version where model nicknames like gemini-flash-latest exist
+        timeout=120_000,  # give up on a single request after 2 minutes (in milliseconds)
+        retry_options=types.HttpRetryOptions(attempts=1),  # we do our own retries; stop the library retrying silently too
+    ),
+)
 MODEL = os.getenv("GEMINI_MODEL")
 FALLBACK_MODEL = os.getenv("GEMINI_FALLBACK_MODEL")
 CACHE_DIR = Path(".cache")
@@ -84,7 +91,7 @@ def extract_promos(source, text, images=None, allow_fallback=True):
     prompt = PROMPT.format(today=clock.today().isoformat(), source=source, text=text)
 
     # The fingerprint covers the prompt AND every image, so a changed banner means a fresh answer
-    hasher = hashlib.sha256(prompt.encode("utf-8"))
+    hasher = hashlib.sha256((MODEL + prompt).encode("utf-8"))  # a different model means a fresh answer
     for img in images:
         hasher.update(img["data"])
     cache_file = CACHE_DIR / f"{hasher.hexdigest()}.json"
@@ -132,7 +139,7 @@ def pick_tech_events(events, source, allow_fallback=True):
     items = "\n\n".join(f"{i}. {e['title']}\n{e['description'][:600]}" for i, e in enumerate(events))
     prompt = TECH_PROMPT.format(items=items)
 
-    cache_file = CACHE_DIR / f"tech_{hashlib.sha256(prompt.encode('utf-8')).hexdigest()}.json"
+    cache_file = CACHE_DIR / f"tech_{hashlib.sha256((MODEL + prompt).encode('utf-8')).hexdigest()}.json"
     if cache_file.exists():
         print(f"{source}: events unchanged, using cached result")
         picks = json.loads(cache_file.read_text(encoding="utf-8"))
@@ -149,4 +156,45 @@ def pick_tech_events(events, source, allow_fallback=True):
         if 0 <= i < len(events) and i not in seen:
             seen.add(i)
             chosen.append({**events[i], "topic": pick["topic"]})
+    return chosen
+
+EVENT_PROMPT = """Below is a numbered list of events in Malaysia from a ticketing site.
+Pick only the events that belong to one of these kinds, and say which kind:
+
+- orchestra: classical or orchestral music performances - symphony, chamber or string orchestras,
+  classical soloists and recitals, choirs singing classical works, and orchestras playing film,
+  anime or game music. Not pop, rock or jazz concerts, tribute acts, or musicals.
+- workshop: hands-on hobby or creative workshops and classes where people make or practise
+  something - art, crafts, cooking, fermentation, dance or acting classes. Not talks, conferences,
+  business or career courses, performances, games nights or social mixers.
+
+Leave out every event that is neither.
+
+{items}
+"""
+
+
+def classify_events(events, source, allow_fallback=True):
+    if not events:
+        return []
+    items = "\n\n".join(f"{i}. {e['title']}\n{e['description'][:400]}" for i, e in enumerate(events))
+    prompt = EVENT_PROMPT.format(items=items)
+
+    cache_file = CACHE_DIR / f"kinds_{hashlib.sha256((MODEL + prompt).encode('utf-8')).hexdigest()}.json"
+    if cache_file.exists():
+        print(f"{source}: events unchanged, using cached result")
+        picks = json.loads(cache_file.read_text(encoding="utf-8"))
+    else:
+        result, model_used = call_gemini(prompt, source, schema=list[EventPick], allow_fallback=allow_fallback)
+        picks = [p.model_dump(mode="json") for p in result]
+        if model_used == MODEL:  # same rule as before: don't cache fallback answers
+            CACHE_DIR.mkdir(exist_ok=True)
+            cache_file.write_text(json.dumps(picks), encoding="utf-8")
+
+    chosen, seen = [], set()
+    for pick in picks:
+        i = pick["index"]
+        if 0 <= i < len(events) and i not in seen:
+            seen.add(i)
+            chosen.append({**events[i], "category": pick["kind"]})
     return chosen

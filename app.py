@@ -7,21 +7,27 @@ import streamlit as st
 import clock
 import db
 from events import to_promo
-from fetcher import fetch_feed_text, fetch_ical_events, fetch_text, fetch_jsonld_events
-from llm import extract_promos, pick_tech_events
+from fetcher import fetch_cloudjoi_events, fetch_feed_text, fetch_ical_events, fetch_jsonld_events, fetch_text
+from llm import classify_events, extract_promos, pick_tech_events
 from sources import SOURCES
 
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
-EVENT_FETCHERS = {"ical": fetch_ical_events, "jsonld": fetch_jsonld_events}
-COOLDOWN_HOURS = 6
+EVENT_FETCHERS = {"ical": fetch_ical_events, "jsonld": fetch_jsonld_events, "cloudjoi": fetch_cloudjoi_events}
+COOLDOWN_HOURS = 0
 CATEGORIES = {
     "bookstore_promo": "📚 Books",
     "tech_event": "💻 Tech events",
+    "orchestra": "🎻 Orchestra & classical",
+    "workshop": "🎨 Workshops",
 }
 CHANNEL_LABELS = {"in_store": "In store", "online": "Online", "both": "In store & online"}
 
-st.set_page_config(page_title="Promo & Event Tracker", page_icon="📚", layout="wide")
-st.title("📚 Malaysia Bookstore Promos & Tech Events")
+st.set_page_config(page_title="What's On Malaysia", page_icon="📚", layout="wide")
+st.title("🗓️ What's On Malaysia")
+
+
+def sources_for(category):
+    return [s for s in SOURCES if category in s.get("categories", [s["category"]])]
 
 
 def process_source(source):
@@ -31,15 +37,19 @@ def process_source(source):
             events = [e for e in events if source["region"] in f"{e['location'] or ''} {e['description']}"]
         if source.get("tech_filter"):
             events = pick_tech_events(events, source["name"])
+        if source.get("classify"):
+            events = classify_events(events, source["name"])
         return [to_promo(e) for e in events]
     text, images = FETCHERS[source["type"]](source["url"])
     return extract_promos(source["name"], text, images)
 
 
 def refresh(category):
-    sources = [s for s in SOURCES if s["category"] == category]
+    sources = sources_for(category)
+    if not sources:
+        return ["No sources are set up for this tab yet."]
 
-    # Start every source in this category at the same time
+    # Start every source for this tab at the same time
     with ThreadPoolExecutor(max_workers=len(sources)) as pool:
         jobs = [(source, pool.submit(process_source, source)) for source in sources]
 
@@ -61,19 +71,22 @@ def refresh(category):
         if run_time is None:
             run_time = db.start_refresh(conn, category)  # only count the refresh once a source actually worked
         for p in promos:
+            row = p.model_dump(mode="json")
+            row["category"] = row.get("category") or source["category"]
+            if row["category"] != category:
+                continue  # belongs to another tab; saved when that tab is refreshed (from cache, no extra quota)
             if source["type"] in EVENT_FETCHERS:
                 if p.link and p.link in seen_links:
                     continue  # same event already saved from another feed in this refresh
                 seen_links.add(p.link)
-            row = p.model_dump(mode="json")
             row.setdefault("topic", None)  # bookstore promos have no topic
             row["source"] = source["name"]
-            row["category"] = source["category"]
             row["link"] = p.link or source["url"]
             db.save_promo(conn, row, run_time)
     conn.commit()
     conn.close()
     return problems
+
 
 def parse_date(value):
     try:
@@ -85,7 +98,7 @@ def parse_date(value):
 def status(row, info, today):
     if info["count"] > 1 and row["first_seen"] == info["latest"]:
         return "🆕 New"
-    if row["category"] == "tech_event":
+    if row["category"] != "bookstore_promo":  # events: count down to the start
         start = parse_date(row["start_date"])
         if start:
             days = (start - today).days
@@ -96,7 +109,7 @@ def status(row, info, today):
             if 1 < days <= 3:
                 return f"📅 In {days} days"
         return ""
-    end = parse_date(row["end_date"])
+    end = parse_date(row["end_date"])  # promos: count down to the end
     if end:
         days_left = (end - today).days
         if days_left < 0:
@@ -109,6 +122,7 @@ def status(row, info, today):
             return f"⏰ Ends in {days_left} days"
     return ""
 
+
 def date_window(choice, today):
     if choice == "This weekend":
         if today.weekday() == 6:  # Sunday: the weekend is just today
@@ -118,6 +132,7 @@ def date_window(choice, today):
     if choice == "Next 7 days":
         return today, today + timedelta(days=6)
     return None  # any time
+
 
 def show_category(category, df, show_expired, window):
     conn = db.connect()
@@ -161,14 +176,15 @@ def show_category(category, df, show_expired, window):
         not_ended = rows["end_date"].isna() | (rows["end_date"] >= window_start)
         rows = rows[starts_in_time & not_ended]
 
-    if category == "tech_event":
-        topics = sorted(rows["topic"].dropna().unique()) if "topic" in rows else []
-        if topics:
-            chosen = st.multiselect("Topics", topics, default=topics, key="topics")
-            rows = rows[rows["topic"].isin(chosen) | rows["topic"].isna()]
+    if category != "bookstore_promo":  # all event tabs
+        if category == "tech_event":
+            topics = sorted(rows["topic"].dropna().unique()) if "topic" in rows else []
+            if topics:
+                chosen = st.multiselect("Topics", topics, default=topics, key="topics")
+                rows = rows[rows["topic"].isin(chosen) | rows["topic"].isna()]
         rows = rows.sort_values("start_date")
         rows["location"] = rows["location"].fillna("See event page")
-        columns = ["status", "topic", "source", "title", "details", "location", "link"]
+        columns = ["status"] + (["topic"] if category == "tech_event" else []) + ["source", "title", "details", "location", "link"]
         soon_label = "Starting soon"
     else:
         rows = rows.sort_values("end_date", na_position="last")  # ending soonest first
@@ -225,9 +241,9 @@ for tab, category in zip(tabs, CATEGORIES):
 
 with st.expander("ℹ️ How this works"):
     st.markdown("""
-- **Sources:** bookstore promo pages (POPULAR, Kinokuniya, BookXcess) and tech event calendars (Luma).
+- **Sources:** bookstore promo pages and feeds (POPULAR, Kinokuniya, BookXcess, Big Bad Wolf), tech event calendars (Luma, dev.events), and CloudJoi for concerts and workshops.
 - **Structured data is read with plain code:** event feeds already have exact dates, times and venues.
-- **An LLM (Gemini) is used only where judgement is needed:** reading messy promo pages and banner images, and deciding which events are tech.
+- **An LLM (Gemini) is used only where judgement is needed:** reading messy promo pages and banner images, and deciding which events belong in which tab.
 - **Every answer is cached,** so unchanged pages never use API quota twice.
 - **Accuracy is measured** against hand-labelled test sets: 100% recall and precision on 29 bookstore promos, and on 13 events for the tech filter.
 """)

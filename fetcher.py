@@ -247,3 +247,58 @@ def fetch_jsonld_events(url):
                 "topic": topic_from_text(item.get("description", "")),
             })
     return events
+
+def fetch_cloudjoi_events(url):
+    response = requests.get(url, headers=HEADERS, timeout=20)
+    response.raise_for_status()
+    soup = BeautifulSoup(response.text, "html.parser")
+    tag = soup.find("script", id="__NEXT_DATA__")
+    if not tag:
+        raise ValueError("CloudJoi page has no embedded data - the site may have changed")
+
+    queries = json.loads(tag.string)["props"]["pageProps"]["dehydratedState"]["queries"]
+    blocks = next((q["state"]["data"] for q in queries if "theatron.home-blocks" in str(q.get("queryKey"))), [])
+
+    now = datetime.now(MYT)
+    events, seen = [], set()
+    for block in blocks:
+        if block.get("type") != "events":
+            continue  # skip sections that list venues, organisers or categories
+        for item in block.get("items") or []:
+            if item.get("id") in seen:
+                continue  # the same event appears in several homepage sections
+            seen.add(item.get("id"))
+
+            start = datetime.fromisoformat(item["starts_at"]).astimezone(MYT)
+            end = datetime.fromisoformat(item.get("ends_at") or item["starts_at"]).astimezone(MYT)
+            if end < now:
+                continue  # already finished
+
+            venues = item.get("venues") or []
+            in_person = [v["name"] for v in venues if v.get("type") == "offline" and v.get("name")]
+            location = in_person[0] if in_person else ("Online" if venues else None)
+
+            prices = item.get("prices") or []
+            symbol = (item.get("currency") or {}).get("symbol", "RM")
+            if not prices:
+                price = None
+            elif min(prices) == 0:
+                price = "Free"
+            else:
+                price = f"From {symbol}{min(prices):g}"
+
+            categories = ", ".join(item.get("categories") or [])
+            genres = ", ".join(item.get("genres") or [])
+            events.append({
+                "uid": f"cloudjoi-{item.get('id')}",
+                "title": item["title"].strip(),
+                "start": start,
+                "end": end,
+                "all_day": False,
+                "location": location,
+                "link": f"https://www.cloudjoi.com/shows/{item['slug']}",
+                "host": None,
+                "price": price,
+                "description": f"Category: {categories}. Genres: {genres}. Venue: {location or 'unknown'}.",
+            })
+    return events

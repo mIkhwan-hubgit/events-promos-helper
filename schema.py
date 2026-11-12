@@ -9,7 +9,6 @@ class Channel(str, Enum):
     online = "online"
     both = "both"
 
-
 class Promo(BaseModel):
     title: str
     details: Optional[str]      # discount or short description
@@ -33,6 +32,14 @@ class TechPick(BaseModel):
     index: int
     topic: Topic
 
-
 class EventItem(Promo):
     topic: Optional[str]  # events have a topic; bookstore promos don't
+    category: Optional[str]  # set when one source feeds several tabs (e.g. CloudJoi)
+
+class EventKind(str, Enum):
+    orchestra = "orchestra"
+    workshop = "workshop"
+
+class EventPick(BaseModel):
+    index: int
+    kind: EventKind

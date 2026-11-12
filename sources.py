@@ -50,4 +50,12 @@ SOURCES = [
         "tech_filter": True,
         "url": "https://api.luma.com/ics/get?entity=calendar&id=cal-pPgkuwCFrycSv1Z",
     },
+        {
+        "name": "CloudJoi",
+        "category": "orchestra",
+        "categories": ["orchestra", "workshop"],  # one source, two tabs
+        "type": "cloudjoi",
+        "classify": True,
+        "url": "https://www.cloudjoi.com/",
+    },
 ]

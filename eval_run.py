@@ -1,6 +1,7 @@
 import json
 from difflib import SequenceMatcher
 from pathlib import Path
+import time
 
 from llm import extract_promos
 
@@ -46,11 +47,21 @@ def load_images(source):
         for m in manifest
     ]
 
+def with_patience(job, attempts=5, wait=60):
+    for attempt in range(attempts):
+        try:
+            return job()
+        except RuntimeError as e:
+            if attempt == attempts - 1:
+                raise
+            print(f"{e} Waiting {wait} seconds, then trying again ({attempt + 1}/{attempts - 1})...")
+            time.sleep(wait)
+
 totals = {"expected": 0, "predicted": 0, "found": 0, "dates_ok": 0, "mentions_ok": 0, "mentions_total": 0, "channel_ok": 0, "channel_total": 0}
 
 for source, expected in expected_all.items():
     text = (EVAL_DIR / "pages" / f"{source}.txt").read_text(encoding="utf-8")
-    predicted = extract_promos(source, text, load_images(source), allow_fallback=False)
+    predicted = with_patience(lambda: extract_promos(source, text, load_images(source), allow_fallback=False))
     matches, used = match(expected, predicted)
     print(f"\n===== {source} =====")
 

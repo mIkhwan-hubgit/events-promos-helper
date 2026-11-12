@@ -10,14 +10,21 @@ def to_promo(event):
     else:
         when = f"{start:%a %d %b, %I:%M %p}"
         when += f" to {end:%I:%M %p}" if end.date() == start.date() else f" to {end:%a %d %b}"
-    details = when + (f" · Hosted by {event['host']}" if event["host"] else "")
+
+    extras = []
+    if event.get("host"):
+        extras.append(f"Hosted by {event['host']}")
+    if event.get("price"):
+        extras.append(event["price"])
+
     return EventItem(
         title=event["title"],
-        details=details,
+        details=" · ".join([when] + extras),
         start_date=start.date().isoformat(),
         end_date=end.date().isoformat(),
         location=event["location"],
         channel=None,
         link=event["link"],
         topic=event.get("topic"),
+        category=event.get("category"),
     )
