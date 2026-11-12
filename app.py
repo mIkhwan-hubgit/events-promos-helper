@@ -7,6 +7,8 @@ import streamlit as st
 import requests
 import clock
 import db
+import json
+from urllib.parse import quote_plus
 from events import concerts_to_events, to_promo
 from fetcher import fetch_cloudjoi_events, fetch_feed_text, fetch_ical_events, fetch_jsonld_events, fetch_text
 from llm import classify_events, extract_promos, pick_tech_events, extract_concerts
@@ -21,6 +23,7 @@ CATEGORIES = {
     "tech_event": "💻 Tech events",
     "orchestra": "🎻 Orchestra & classical",
     "workshop": "🎨 Workshops",
+    "video_games": "🎮 Video games",    
 }
 CHANNEL_LABELS = {"in_store": "In store", "online": "Online", "both": "In store & online"}
 
@@ -144,6 +147,36 @@ def date_window(choice, today):
         return today, today + timedelta(days=6)
     return None  # any time
 
+def show_watchlist():
+    st.caption("There's no reliable automated source for video game events in Malaysia, "
+               "so this is a list of events to check yourself.")
+    try:
+        with open("watchlist.json", encoding="utf-8") as f:
+            items = json.load(f)
+    except FileNotFoundError:
+        st.info("Add events to watchlist.json to see them here.")
+        return
+
+    year = clock.today().year
+    rows = pd.DataFrame([
+        {
+            "name": item["name"],
+            "search": f"https://www.google.com/search?q={quote_plus(item['name'] + ' ' + str(year))}",
+            "site": item.get("site"),
+            "note": item.get("note", ""),
+        }
+        for item in items
+    ])
+    st.dataframe(
+        rows,
+        hide_index=True,
+        column_config={
+            "name": st.column_config.TextColumn("Event"),
+            "search": st.column_config.LinkColumn("Search", display_text="Google it"),
+            "site": st.column_config.LinkColumn("Official site", display_text="Open"),
+            "note": st.column_config.TextColumn("Note"),
+        },
+    )
 
 def show_category(category, df, show_expired, window):
     conn = db.connect()
@@ -249,7 +282,10 @@ window = date_window(when, clock.today())
 tabs = st.tabs(list(CATEGORIES.values()))
 for tab, category in zip(tabs, CATEGORIES):
     with tab:
-        show_category(category, df, show_expired, window)
+        if category == "video_games":
+            show_watchlist()
+        else:
+            show_category(category, df, show_expired, window)
 
 with st.expander("ℹ️ How this works"):
     st.markdown("""
