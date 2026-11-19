@@ -42,3 +42,7 @@ Orchestra 3/4, precision 100% | Workshop 6/7, precision 100% | Video games: 0 fa
 Echoes of Light & Memory (Final Fantasy music, orchestra) stayed under orchestra - the new rule works.
 Mini Paint Jam flipped to none. Its whole page summary is "Let's Paint! (and Play?)", so it's
 borderline with very little information. It has flipped before; not tuning the prompt for it.
+
+## 19 Nov 2026: regression check after "skip sales abroad" rule (gemini-3.6-flash)
+Recall 100% | Precision 100% | Dates 100% | Key details 100% | Channel 28/29 = 97% (MADANI, as before)
+No change from the baseline. Model was busy, not out of quota: the patient retries succeeded on the 4th try.
