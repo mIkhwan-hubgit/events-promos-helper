@@ -283,6 +283,9 @@ tabs = st.tabs(list(CATEGORIES.values()))
 for tab, category in zip(tabs, CATEGORIES):
     with tab:
         if category == "video_games":
+            show_category(category, df, show_expired, window)
+            st.divider()
+            st.subheader("Watchlist")
             show_watchlist()
         else:
             show_category(category, df, show_expired, window)
