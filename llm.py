@@ -43,6 +43,8 @@ Rules:
 - If the text gives a link for a promotion, put it in link.
 - Some posts come with a banner image, labelled with the post's title. Read the text in each image too. If an image shows an offer (such as a discount), include it in that promotion, even when the post text doesn't mention it.
 - Only include promotions and events in Malaysia or available to Malaysian customers. Skip ones in other countries.
+  Some stores also post about sales abroad (e.g. Ajman, Dubai, Bangkok, Manila, Jakarta). Check the city and the
+  currency: prices in AED, THB, PHP, IDR or SGD mean it is outside Malaysia, so skip it.
 - If something is not stated, use null. Never make up details.
 - If the same offer appears more than once (e.g. the same promo code in two places), list it only once.
 
@@ -50,6 +52,8 @@ Page text from {source}:
 {text}
 """
 
+class DailyQuotaUsed(RuntimeError):
+    """The free daily limit is used up; waiting a few minutes won't help."""
 
 def call_gemini(contents, source, schema=list[Promo], allow_fallback=True, retries=3):
     models = [MODEL] + ([FALLBACK_MODEL] if FALLBACK_MODEL and allow_fallback else [])
@@ -79,6 +83,8 @@ def call_gemini(contents, source, schema=list[Promo], allow_fallback=True, retri
             except errors.ClientError as e:
                 if e.code == 429:
                     print(f"{source}: {model} has used up its free quota, trying the next model...")
+                    if "PerDay" in str(e) and model == models[-1]:
+                        raise DailyQuotaUsed("The daily free limit is used up for today. Try again after it resets.")
                     break  # no point retrying this model today
                 raise  # any other client error (e.g. bad key) should stop immediately
         print(f"{source}: moving on from {model}...")
@@ -158,7 +164,7 @@ def pick_tech_events(events, source, allow_fallback=True):
             chosen.append({**events[i], "topic": pick["topic"]})
     return chosen
 
-EVENT_PROMPT = """Below is a numbered list of events in Malaysia from a ticketing site.
+EVENT_PROMPT = """Below is a numbered list of events in Malaysia from event listings.
 Pick only the events that belong to one of these kinds, and say which kind:
 
 - orchestra: classical or orchestral music performances - symphony, chamber or string orchestras,
@@ -167,6 +173,9 @@ Pick only the events that belong to one of these kinds, and say which kind:
 - workshop: hands-on hobby or creative workshops and classes where people make or practise
   something - art, crafts, cooking, fermentation, dance or acting classes. Not talks, conferences,
   business or career courses, performances, games nights or social mixers.
+- video_games: events about video games - gaming festivals, conventions or expos centred on
+  gaming, esports tournaments, game launches and game developer events. Not board games,
+  card games, D&D or other tabletop games. Concerts of game music go under orchestra.
 
 Leave out every event that is neither.
 

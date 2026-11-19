@@ -3,7 +3,7 @@ import hashlib
 import json
 import re
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from icalendar import Calendar
 
@@ -330,4 +330,99 @@ def fetch_cloudjoi_events(url):
                 "price": price,
                 "description": description,
             })
+    return events
+
+MWO_CACHE = Path(".cache/mwo")
+MWO_MAX_AGE = timedelta(days=7)  # dates can change (e.g. tentative -> confirmed), so re-read pages weekly
+
+
+def jsonld_items(html):
+    soup = BeautifulSoup(html, "html.parser")
+    for block in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(block.string or "")
+        except json.JSONDecodeError:
+            continue
+        items = data if isinstance(data, list) else data.get("@graph", [data])
+        yield from (item for item in items if isinstance(item, dict))
+
+
+def jsonld_times(item):
+    """Start, end and whether it's all-day, from a JSON-LD event with or without times."""
+    raw_start = item["startDate"]
+    raw_end = item.get("endDate") or raw_start
+    if len(raw_start) == 10:  # a plain date like 2026-12-10 means a whole-day event
+        first, last = date.fromisoformat(raw_start), date.fromisoformat(raw_end[:10])
+        start = datetime(first.year, first.month, first.day, tzinfo=MYT)
+        end = datetime(last.year, last.month, last.day, 23, 59, tzinfo=MYT)
+        return start, end, True
+    start = datetime.fromisoformat(raw_start).astimezone(MYT)
+    if len(raw_end) == 10:
+        last = date.fromisoformat(raw_end)
+        end = datetime(last.year, last.month, last.day, 23, 59, tzinfo=MYT)
+    else:
+        end = datetime.fromisoformat(raw_end).astimezone(MYT)
+    return start, end, False
+
+
+def mwo_event_page(link):
+    """One Malaysia What's On event page, cached for a week."""
+    cache_file = MWO_CACHE / f"{hashlib.sha256(link.encode('utf-8')).hexdigest()}.json"
+    if cache_file.exists():
+        cached = json.loads(cache_file.read_text(encoding="utf-8"))
+        if datetime.now(MYT) - datetime.fromisoformat(cached["fetched"]) < MWO_MAX_AGE:
+            return cached
+    time.sleep(1)  # be polite: at most one page per second
+    try:
+        response = requests.get(link, headers=HEADERS, timeout=20)
+        response.raise_for_status()
+    except requests.RequestException:
+        return None  # not cached, so it's retried next time
+    event = next((i for i in jsonld_items(response.text) if "Event" in str(i.get("@type"))), None)
+    page_text = BeautifulSoup(response.text, "html.parser").get_text(" ").lower()
+    result = {
+        "fetched": datetime.now(MYT).isoformat(),
+        "event": event,
+        "confirmed": "confirmed date" in page_text,  # tentative pages never say this
+    }
+    MWO_CACHE.mkdir(parents=True, exist_ok=True)
+    cache_file.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
+    return result
+
+
+def fetch_mwo_events(url):
+    response = requests.get(url, headers=HEADERS, timeout=20)
+    response.raise_for_status()
+    links = []
+    for item in jsonld_items(response.text):
+        if item.get("@type") == "ItemList":
+            links += [x["url"] for x in item.get("itemListElement", []) if x.get("url")]
+
+    now = datetime.now(MYT)
+    events = []
+    for link in links:
+        page = mwo_event_page(link)
+        if not page or not page["event"] or not page["confirmed"]:
+            continue  # unreadable, no event data, or only a guessed (tentative) date
+        item = page["event"]
+        try:
+            start, end, all_day = jsonld_times(item)
+        except (KeyError, ValueError):
+            continue  # dates missing or unreadable
+        if end < now:
+            continue
+        place = item.get("location") if isinstance(item.get("location"), dict) else {}
+        address = place.get("address") if isinstance(place.get("address"), dict) else {}
+        location = ", ".join(p for p in [place.get("name"), address.get("addressLocality")] if p) or None
+        events.append({
+            "uid": link,
+            "title": item["name"],
+            "start": start,
+            "end": end,
+            "all_day": all_day,
+            "location": location,
+            "link": link,
+            "host": None,
+            "description": f"Type: {item.get('@type')}. {item.get('description', '')}",
+        })
     return events

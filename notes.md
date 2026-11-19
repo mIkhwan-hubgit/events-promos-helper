@@ -36,3 +36,9 @@ Problem: for "The 9th" the model only saw "Category: Music". Missing information
 Fix: read each vague-category event's page summary once and cache it forever.
 After: orchestra recall 3/4, precision 100% | workshop recall 7/7, precision 100% | overall 89/90
 Remaining: Calista Lim (opera + Broadway recital, borderline). Mini Paint Jam: [what its summary says].
+
+## 19 Nov 2026: added video_games kind (gemini-3.6-flash), regression check
+Orchestra 3/4, precision 100% | Workshop 6/7, precision 100% | Video games: 0 false picks | Overall 88/90
+Echoes of Light & Memory (Final Fantasy music, orchestra) stayed under orchestra - the new rule works.
+Mini Paint Jam flipped to none. Its whole page summary is "Let's Paint! (and Play?)", so it's
+borderline with very little information. It has flipped before; not tuning the prompt for it.

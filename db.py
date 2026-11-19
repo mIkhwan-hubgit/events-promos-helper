@@ -52,29 +52,49 @@ def start_refresh(conn, category):
     conn.commit()
     return now
 
+def similar(a, b):
+    shorter = min(a, b, key=len)
+    contains = len(shorter) >= 12 and (a in b or b in a)
+    return a == b or contains or SequenceMatcher(None, a, b).ratio() >= 0.85
+
+
 def find_existing(conn, row):
     """Return (source, title_key) of a row that's really the same item, or this row's own key."""
-    # Events: the same event link means the same event, whichever feed it came from
-    if row["category"] != "bookstore_promo" and row.get("link"):
-        hit = conn.execute(
-            "SELECT source, title_key FROM promos WHERE category = ? AND link = ?",
-            (row["category"], row["link"]),
-        ).fetchone()
-        if hit:
-            return hit["source"], hit["title_key"]
+    key = make_key(row["title"])
+    if row["category"] != "bookstore_promo":
+        # Events: the same link means the same event, whichever feed it came from
+        if row.get("link"):
+            hit = conn.execute(
+                "SELECT source, title_key FROM promos WHERE category = ? AND link = ?",
+                (row["category"], row["link"]),
+            ).fetchone()
+            if hit:
+                return hit["source"], hit["title_key"]
+        # ...and so does the same start date with a near-identical title, even from another site
+        for existing in conn.execute(
+            "SELECT source, title_key FROM promos WHERE category = ? AND start_date = ?",
+            (row["category"], row["start_date"]),
+        ):
+            if similar(key, existing["title_key"]):
+                return existing["source"], existing["title_key"]
+        return row["source"], key
 
     # Promos: the LLM words titles slightly differently between runs, so match close titles
-    key = make_key(row["title"])
     for existing in conn.execute("SELECT title_key FROM promos WHERE source = ?", (row["source"],)):
-        other = existing["title_key"]
-        shorter = min(key, other, key=len)
-        contains = len(shorter) >= 12 and (key in other or other in key)
-        if other == key or contains or SequenceMatcher(None, key, other).ratio() >= 0.85:
-            return row["source"], other
+        if similar(key, existing["title_key"]):
+            return row["source"], existing["title_key"]
     return row["source"], key
+
 
 def save_promo(conn, row, run_time):
     source, title_key = find_existing(conn, row)
+    if source != row["source"]:
+        # already saved from another source: keep its details, just note it's still listed
+        conn.execute(
+            "UPDATE promos SET last_seen = ? WHERE source = ? AND title_key = ?",
+            (run_time, source, title_key),
+        )
+        return
     conn.execute("""
         INSERT INTO promos (source, category, title, title_key, details, start_date, end_date,
                             location, channel, link, topic, first_seen, last_seen)

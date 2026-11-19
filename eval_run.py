@@ -4,6 +4,7 @@ from pathlib import Path
 import time
 
 from llm import extract_promos
+from llm import DailyQuotaUsed
 
 EVAL_DIR = Path("eval")
 MATCH_THRESHOLD = 0.7
@@ -51,6 +52,8 @@ def with_patience(job, attempts=5, wait=60):
     for attempt in range(attempts):
         try:
             return job()
+        except DailyQuotaUsed:
+            raise  # waiting won't help; stop straight away
         except RuntimeError as e:
             if attempt == attempts - 1:
                 raise

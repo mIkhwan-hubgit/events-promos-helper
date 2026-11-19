@@ -57,7 +57,7 @@ SOURCES = [
         {
         "name": "CloudJoi",
         "category": "orchestra",
-        "categories": ["orchestra", "workshop"],  # one source, two tabs
+        "categories": ["orchestra", "workshop", "video_games"],  # one source, two tabs
         "type": "cloudjoi",
         "classify": True,
         "url": "https://www.cloudjoi.com/",
@@ -72,4 +72,12 @@ SOURCES = [
         }
         for year in (THIS_YEAR, THIS_YEAR + 1)
     ],
+    {
+        "name": "Malaysia What's On",
+        "category": "orchestra",
+        "categories": ["orchestra", "workshop", "video_games"],
+        "type": "mwo",
+        "classify": True,
+        "url": "https://malaysiawhatson.com/events/",
+    },
 ]

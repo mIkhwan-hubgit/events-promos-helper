@@ -4,12 +4,13 @@ import time
 from pathlib import Path
 
 from llm import classify_events
+from llm import DailyQuotaUsed
 
 FOLDER = Path("eval/kinds")
 events = json.loads((FOLDER / "cloudjoi_events.json").read_text(encoding="utf-8"))
 labels = json.loads((FOLDER / "expected_kinds.json").read_text(encoding="utf-8"))
 
-unlabelled = [l["title"] for l in labels if l["kind"] not in ("orchestra", "workshop", "none")]
+unlabelled = [l["title"] for l in labels if l["kind"] not in ("orchestra", "workshop", "video_games", "none")]
 if unlabelled:
     raise SystemExit(f"Label every event first. Missing or misspelled ({len(unlabelled)}): {unlabelled[:5]}")
 
@@ -18,6 +19,8 @@ def with_patience(job, attempts=5, wait=60):
     for attempt in range(attempts):
         try:
             return job()
+        except DailyQuotaUsed:
+            raise  # waiting won't help; stop straight away
         except RuntimeError as e:
             if attempt == attempts - 1:
                 raise
@@ -46,7 +49,7 @@ for title, want in expected.items():
         print(f"  {mark}: {title}  (model: {got}, expected: {want})")
 
 print("\n===== Summary =====")
-for kind in ("orchestra", "workshop"):
+for kind in ("orchestra", "workshop", "video_games"):
     hits = sum(1 for t in expected if expected[t] == kind and predicted[t] == kind)
     should = sum(1 for t in expected if expected[t] == kind)
     picked = sum(1 for t in expected if predicted[t] == kind)

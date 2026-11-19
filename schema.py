@@ -39,6 +39,7 @@ class EventItem(Promo):
 class EventKind(str, Enum):
     orchestra = "orchestra"
     workshop = "workshop"
+    video_games = "video_games"
 
 class EventPick(BaseModel):
     index: int
