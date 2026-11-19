@@ -426,3 +426,50 @@ def fetch_mwo_events(url):
             "description": f"Type: {item.get('@type')}. {item.get('description', '')}",
         })
     return events
+
+def klec_time(event, field):
+    """Event time in Malaysia time; the API gives UTC times too, which are the safest to convert."""
+    utc = event.get(f"utc_{field}")
+    if utc:
+        return datetime.fromisoformat(utc + "+00:00").astimezone(MYT)
+    return datetime.fromisoformat(event[field]).replace(tzinfo=MYT)
+
+
+def fetch_klec_events(url):
+    """KL Events Calendar: a WordPress events plugin with a public JSON list of upcoming events."""
+    items, next_url, params = [], url, {"per_page": 50}
+    for _ in range(5):  # at most 5 pages, so a site change can't make us loop forever
+        response = requests.get(next_url, params=params, headers=HEADERS, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+        items += data.get("events", [])
+        next_url, params = data.get("next_rest_url"), None  # the next page's link already has its settings
+        if not next_url:
+            break
+
+    now = datetime.now(MYT)
+    events = []
+    for e in items:
+        try:
+            start, end = klec_time(e, "start_date"), klec_time(e, "end_date")
+        except (KeyError, ValueError):
+            continue  # dates missing or unreadable
+        if end < now:
+            continue
+        venue = e.get("venue") if isinstance(e.get("venue"), dict) else {}
+        location = ", ".join(p for p in [html.unescape(venue.get("venue") or ""), venue.get("city")] if p) or None
+        categories = ", ".join(html.unescape(c.get("name", "")) for c in e.get("categories", []))
+        about = BeautifulSoup(e.get("excerpt") or e.get("description") or "", "html.parser").get_text(" ")
+        about = " ".join(html.unescape(about).split())[:400]
+        events.append({
+            "uid": e.get("url") or e.get("id"),
+            "title": html.unescape(e["title"]).strip(),
+            "start": start,
+            "end": end,
+            "all_day": bool(e.get("all_day")),
+            "location": location,
+            "link": e.get("url"),
+            "host": None,
+            "description": f"Category: {categories or 'none'}. About: {about}",
+        })
+    return events

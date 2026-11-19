@@ -10,7 +10,7 @@ import db
 import json
 from urllib.parse import quote_plus
 from events import concerts_to_events, to_promo
-from fetcher import fetch_cloudjoi_events, fetch_feed_text, fetch_ical_events, fetch_jsonld_events, fetch_text, fetch_mwo_events
+from fetcher import fetch_cloudjoi_events, fetch_feed_text, fetch_ical_events, fetch_jsonld_events, fetch_text, fetch_mwo_events, fetch_klec_events
 from llm import classify_events, extract_promos, pick_tech_events, extract_concerts
 from sources import SOURCES
 import hmac
@@ -22,7 +22,7 @@ from streamlit_sortables import sort_items
 load_dotenv()
 
 FETCHERS = {"html": fetch_text, "feed": fetch_feed_text}
-EVENT_FETCHERS = {"ical": fetch_ical_events, "jsonld": fetch_jsonld_events, "cloudjoi": fetch_cloudjoi_events, "mwo": fetch_mwo_events}
+EVENT_FETCHERS = {"ical": fetch_ical_events, "jsonld": fetch_jsonld_events, "cloudjoi": fetch_cloudjoi_events, "mwo": fetch_mwo_events, "klec": fetch_klec_events}
 EMPTY_IS_NORMAL = set(EVENT_FETCHERS) | {"concert_page"}  # sources where finding nothing isn't a failure
 COOLDOWN_HOURS = 6
 CATEGORIES = {

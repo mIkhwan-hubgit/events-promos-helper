@@ -73,6 +73,14 @@ SOURCES = [
         for year in (THIS_YEAR, THIS_YEAR + 1)
     ],
     {
+        "name": "KL Events Calendar",
+        "category": "orchestra",
+        "categories": ["orchestra", "workshop", "video_games"],
+        "type": "klec",
+        "classify": True,
+        "url": "https://kleventscalendar.my/wp-json/tribe/events/v1/events",
+    },
+    {
         "name": "Malaysia What's On",
         "category": "orchestra",
         "categories": ["orchestra", "workshop", "video_games"],
