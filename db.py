@@ -35,6 +35,18 @@ def connect():
             category TEXT NOT NULL
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS plans (
+            source TEXT NOT NULL,
+            title_key TEXT NOT NULL,
+            status TEXT NOT NULL,
+            category TEXT,
+            title TEXT,
+            start_date TEXT,
+            link TEXT,
+            PRIMARY KEY (source, title_key)
+        )
+    """)
     columns = [row["name"] for row in conn.execute("PRAGMA table_info(promos)")]
     if "topic" not in columns:
         conn.execute("ALTER TABLE promos ADD COLUMN topic TEXT")  # upgrade databases made before topics existed
@@ -123,3 +135,18 @@ def refresh_info(conn, category):
         (category,),
     ).fetchone()
     return dict(row)
+
+def load_plans(conn):
+    return [dict(r) for r in conn.execute("SELECT * FROM plans ORDER BY start_date")]
+
+
+def set_plan(conn, item, status):
+    """status is 'want', 'going', or None to remove the plan."""
+    if status is None:
+        conn.execute("DELETE FROM plans WHERE source = ? AND title_key = ?", (item["source"], item["title_key"]))
+        return
+    conn.execute("""
+        INSERT INTO plans (source, title_key, status, category, title, start_date, link)
+        VALUES (:source, :title_key, :status, :category, :title, :start_date, :link)
+        ON CONFLICT(source, title_key) DO UPDATE SET status = excluded.status
+    """, {**item, "status": status})
