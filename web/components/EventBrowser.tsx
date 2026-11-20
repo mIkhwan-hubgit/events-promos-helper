@@ -61,7 +61,8 @@ export default function EventBrowser() {
   const [refreshing, setRefreshing] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [selected, setSelected] = useState<EventItem | null>(null);
-  const { unlocked } = usePlans();
+  const { unlocked, token } = usePlans();
+  const [slow, setSlow] = useState(false);
 
   // After locking, the "My plans" tab disappears, so show Orchestra instead
   const tab: TabId = chosenTab === "plans" && !unlocked ? "orchestra" : chosenTab;
@@ -74,10 +75,13 @@ export default function EventBrowser() {
         if (!cancelled) setLoaded(result);
       })
       .catch(() => {
-        if (!cancelled) setLoadError("Couldn't reach the API. Is it running on port 8000?");
+        if (!cancelled) setLoadError("Couldn't load the events. Please reload the page in a minute.");
       });
+    // The free server sleeps when nobody visits; say so if waking it up takes a while
+    const timer = setTimeout(() => setSlow(true), 4000);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, []);
 
@@ -86,7 +90,7 @@ export default function EventBrowser() {
     setRefreshing(true);
     setMessages([]);
     try {
-      setMessages(await refreshCategory(tab));
+      setMessages(await refreshCategory(tab, token));
       setLoaded(await loadEverything());
     } catch (error) {
       setMessages([error instanceof Error ? error.message : String(error)]);
@@ -139,11 +143,18 @@ export default function EventBrowser() {
         {loadError && <p className="mt-6 rounded-xl border-[1.5px] border-line bg-surface p-4">{loadError}</p>}
 
         {!loaded && !loadError && (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading events">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-36 animate-pulse rounded-2xl bg-surface-2" />
-            ))}
-          </div>
+          <>
+            {slow && (
+              <p className="mt-6 text-muted" role="status">
+                Waking up the free server... the first visit can take up to a minute.
+              </p>
+            )}
+            <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading events">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-36 animate-pulse rounded-2xl bg-surface-2" />
+              ))}
+            </div>
+          </>
         )}
 
         {tab === "plans" && loaded && (
@@ -155,17 +166,22 @@ export default function EventBrowser() {
         {current && loaded && (
           <>
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={refreshing || current.next_refresh_at !== null}
-                className="rounded-xl bg-accent px-4 py-2 font-semibold text-on-accent transition-[opacity,transform] hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40"
-              >
-                {refreshing ? "Checking sources..." : "Refresh"}
-              </button>
+              {/* Everything refreshes by itself every morning; the button is only for you, when unlocked */}
+              {unlocked && (
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={refreshing || current.next_refresh_at !== null}
+                  className="rounded-xl bg-accent px-4 py-2 font-semibold text-on-accent transition-[opacity,transform] hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-40"
+                >
+                  {refreshing ? "Checking sources..." : "Refresh"}
+                </button>
+              )}
               <span className="text-sm text-muted">
                 {current.refreshed_at ? `Last refreshed ${formatTimestamp(current.refreshed_at)}` : "Never refreshed"}
-                {current.next_refresh_at && ` · next refresh after ${formatTimestamp(current.next_refresh_at)}`}
+                {unlocked
+                  ? current.next_refresh_at && ` · next refresh after ${formatTimestamp(current.next_refresh_at)}`
+                  : " · updates every morning"}
               </span>
 
               <div className="flex items-center gap-3 sm:ml-auto">

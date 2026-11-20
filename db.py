@@ -7,9 +7,35 @@ from difflib import SequenceMatcher
 DB_PATH = "promos.db"
 
 
-def connect():
+import os
+import sqlite3
+
+import clock
+
+from difflib import SequenceMatcher
+
+DB_PATH = "promos.db"
+tables_ready = False  # the CREATE TABLE checks only need to run once each time the server starts
+
+
+def open_database():
+    """Online the data lives in Turso; on your computer it's the promos.db file."""
+    url = os.getenv("TURSO_DATABASE_URL")
+    if url:
+        import turso_serverless  # only needed online
+        conn = turso_serverless.connect(url, auth_token=os.getenv("TURSO_AUTH_TOKEN"))
+        conn.row_factory = turso_serverless.Row  # lets us read rows like dictionaries
+        return conn
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row  # lets us read rows like dictionaries
+    return conn
+
+
+def connect():
+    global tables_ready
+    conn = open_database()
+    if tables_ready:
+        return conn
     conn.execute("""
         CREATE TABLE IF NOT EXISTS promos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +76,7 @@ def connect():
     columns = [row["name"] for row in conn.execute("PRAGMA table_info(promos)")]
     if "topic" not in columns:
         conn.execute("ALTER TABLE promos ADD COLUMN topic TEXT")  # upgrade databases made before topics existed
+    tables_ready = True
     return conn
 
 

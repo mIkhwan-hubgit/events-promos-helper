@@ -55,8 +55,12 @@ export async function getEvents(category: CategoryId): Promise<CategoryEvents> {
   return response.json();
 }
 
-export async function refreshCategory(category: CategoryId): Promise<string[]> {
-  const response = await fetch(`${API_URL}/api/refresh/${category}`, { method: "POST" });
+// Refreshing by hand is only for you, so it sends your plans token
+export async function refreshCategory(category: CategoryId, token: string | null): Promise<string[]> {
+  const response = await fetch(`${API_URL}/api/refresh/${category}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
   if (!response.ok) throw new Error(await readError(response));
   const body = await response.json();
   return body.problems;

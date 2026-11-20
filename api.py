@@ -26,10 +26,12 @@ load_dotenv()  # reads PLANS_PASSWORD (and the Gemini settings) from .env
 
 app = FastAPI(title="What's On Malaysia API")
 
-# While developing, the website runs at localhost:3000, a different address, so allow it to call us
+# The website lives at a different address, so allow it to call us.
+# On your computer that's localhost:3000; online, ALLOWED_ORIGINS holds the Vercel address.
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST", "PUT"],
     allow_headers=["*"],
 )
@@ -89,7 +91,9 @@ def events(category: str, show_expired: bool = False):
 
 
 @app.post("/api/refresh/{category}")
-def refresh_category(category: str):
+def refresh_category(category: str, authorization: str | None = Header(default=None)):
+    # Everyone gets the daily 6 a.m. refresh; refreshing by hand is only for you (unlocked)
+    require_owner(authorization)
     check_category(category)
     conn = db.connect()
     info = db.refresh_info(conn, category)

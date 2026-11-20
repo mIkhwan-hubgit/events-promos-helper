@@ -9,6 +9,7 @@ import UnlockDialog from "./UnlockDialog";
 
 type PlansContextValue = {
   unlocked: boolean;
+  token: string | null;
   plans: Plan[];
   statusOf: (item: Plannable) => PlanStatus | null;
   setPlan: (item: Plannable, status: PlanStatus | null, origin?: Origin) => void;
@@ -110,6 +111,7 @@ export default function PlansProvider({ children }: { children: ReactNode }) {
 
   const value: PlansContextValue = {
     unlocked: token !== null,
+    token,
     plans: [...plans.values()].sort((a, b) => (a.start_date ?? "9999").localeCompare(b.start_date ?? "9999")),
     statusOf: (item) => plans.get(keyOf(item))?.status ?? null,
     setPlan,
