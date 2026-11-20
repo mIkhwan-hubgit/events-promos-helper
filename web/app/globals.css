@@ -177,8 +177,47 @@ html[data-choice="dark"] .theme-label[data-for="dark"] { display: inline; }
 .sticker-yellow { background: var(--sticker); color: var(--sticker-ink); transform: rotate(5deg); }
 .sticker-accent { background: var(--accent); color: var(--on-accent); transform: rotate(-4deg); }
 .sticker-grey { background: var(--surface-2); color: var(--muted); transform: rotate(3deg); }
+.sticker-inline { position: static; display: inline-block; margin-bottom: 0.6rem; }
+
+/* ---------- Motion: hover lift & glow ---------- */
+.card-hover {
+  transition: transform 0.25s cubic-bezier(0.3, 1.5, 0.6, 1), box-shadow 0.25s, border-color 0.25s;
+}
+.card-hover:hover {
+  transform: translateY(-6px) rotate(-0.6deg);
+  border-color: var(--accent);
+  box-shadow:
+    0 10px 28px color-mix(in srgb, var(--accent) 30%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* ---------- Timeline: dotted line with a dot per day ---------- */
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 0.6rem;
+  top: 0.4rem;
+  bottom: 0.4rem;
+  width: 3px;
+  border-radius: 3px;
+  background: repeating-linear-gradient(var(--accent) 0 8px, transparent 8px 14px);
+  opacity: 0.6;
+}
+.timeline-day::before {
+  content: "";
+  position: absolute;
+  left: -1.95rem;
+  top: 0.3rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 9999px;
+  background: var(--surface);
+  border: 3.5px solid var(--accent);
+}
 
 @media (prefers-reduced-motion: reduce) {
   .hero-blob,
   .doodle { animation: none; }
+  .card-hover,
+  .card-hover:hover { transition: none; transform: none; }
 }

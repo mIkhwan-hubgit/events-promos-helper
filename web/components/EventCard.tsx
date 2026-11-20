@@ -1,10 +1,13 @@
+"use client";
+
+import { motion } from "motion/react";
 import type { EventItem } from "@/lib/api";
 import { dayAndMonth, daysBetween, formatWhen } from "@/lib/dates";
 
-type Sticker = { text: string; tone: "yellow" | "accent" | "grey" };
+export type Sticker = { text: string; tone: "yellow" | "accent" | "grey" };
 
 // The tilted label in the card's corner. Only one, in order of importance.
-function stickerFor(event: EventItem, today: string): Sticker | null {
+export function stickerFor(event: EventItem, today: string): Sticker | null {
   const details = event.details ?? "";
   if (/sold out/i.test(details)) return { text: "Sold out", tone: "grey" };
   if (event.is_new) return { text: "NEW!", tone: "yellow" };
@@ -28,16 +31,30 @@ function stickerFor(event: EventItem, today: string): Sticker | null {
   return null;
 }
 
-export default function EventCard({ event, today }: { event: EventItem; today: string }) {
-  // The date stamp shows today for things already running, otherwise the start day
-  const running = event.start_date !== null && event.start_date < today;
-  const stampDate = running ? today : (event.start_date ?? event.end_date);
-  const stamp = stampDate ? dayAndMonth(stampDate) : null;
+// The day an event belongs to on the page: today for things already running, otherwise its start day
+export function displayDate(event: EventItem, today: string): string | null {
+  if (event.start_date && event.start_date < today) return today;
+  return event.start_date ?? event.end_date;
+}
+
+type Props = {
+  event: EventItem;
+  today: string;
+  onOpen: (event: EventItem) => void;
+};
+
+export default function EventCard({ event, today, onOpen }: Props) {
+  const date = displayDate(event, today);
+  const stamp = date ? dayAndMonth(date) : null;
   const sticker = stickerFor(event, today);
   const isPromo = event.category === "bookstore_promo";
 
   return (
-    <article className="relative grid grid-cols-[auto_1fr] items-start gap-4 rounded-2xl border-[1.5px] border-line bg-surface p-4">
+    // layoutId lets this card grow smoothly into the details window when clicked
+    <motion.article
+      layoutId={`event-${event.id}`}
+      className="card-hover relative grid h-full grid-cols-[auto_1fr] items-start gap-4 rounded-2xl border-[1.5px] border-line bg-surface p-4"
+    >
       {sticker && <span className={`sticker sticker-${sticker.tone}`}>{sticker.text}</span>}
 
       <div className="stamp">
@@ -52,19 +69,35 @@ export default function EventCard({ event, today }: { event: EventItem; today: s
       </div>
 
       <div className="min-w-0">
-        <h3 className="font-display text-lg font-semibold leading-tight">{event.title}</h3>
+        <h3 className="font-display text-lg font-semibold leading-tight">
+          {/* The whole card is clickable: this button stretches over it (see the after: classes) */}
+          <button
+            type="button"
+            id={`card-${event.id}`}
+            onClick={() => onOpen(event)}
+            className="text-left after:absolute after:inset-0 after:rounded-2xl after:content-['']"
+          >
+            {event.title}
+          </button>
+        </h3>
         <div className="mt-1.5 grid gap-0.5 text-sm text-muted">
           {/* Promos: dates, then the offer. Events: their details already include the day and time. */}
           {isPromo && <span>{formatWhen(event, today)}</span>}
-          {event.details && <span>{event.details}</span>}
-          {event.location && <span>{event.location}</span>}
+          {event.details && <span className="line-clamp-2">{event.details}</span>}
+          {event.location && <span className="line-clamp-1">{event.location}</span>}
           <span>
             <span className="font-semibold text-ink">{event.source}</span>
             {event.topic && ` · ${event.topic}`}
             {event.link && (
               <>
                 {" · "}
-                <a href={event.link} target="_blank" rel="noopener noreferrer" className="font-semibold text-accent underline-offset-2 hover:underline">
+                {/* relative z-10 keeps this link clickable above the stretched button */}
+                <a
+                  href={event.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="relative z-10 font-semibold text-accent underline-offset-2 hover:underline"
+                >
                   Open ↗
                 </a>
               </>
@@ -72,6 +105,6 @@ export default function EventCard({ event, today }: { event: EventItem; today: s
           </span>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }
