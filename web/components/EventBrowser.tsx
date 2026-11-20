@@ -8,51 +8,50 @@ import {
   refreshCategory,
   type CategoryEvents,
   type CategoryId,
-  type EventItem,
   type WatchItem,
 } from "@/lib/api";
+import { formatTimestamp, todayInMalaysia } from "@/lib/dates";
+import { TabIcon } from "./Doodles";
+import EventCard from "./EventCard";
 
-// "2026-11-20" -> "Fri 20 Nov 2026". Dates are read as UTC so the day never shifts.
-function formatDay(value: string) {
-  return new Date(`${value}T00:00:00Z`).toLocaleDateString("en-MY", {
-    weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
-  });
-}
+type Loaded = {
+  events: Partial<Record<CategoryId, CategoryEvents>>;
+  watchlist: WatchItem[];
+  today: string;
+};
 
-function formatWhen(event: EventItem) {
-  if (!event.start_date) return event.end_date ? `Until ${formatDay(event.end_date)}` : "";
-  if (!event.end_date || event.end_date === event.start_date) return formatDay(event.start_date);
-  return `${formatDay(event.start_date)} to ${formatDay(event.end_date)}`;
-}
-
-function formatTimestamp(value: string) {
-  return new Date(value).toLocaleString("en-MY", {
-    day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kuala_Lumpur",
-  });
+// Load every tab at once, so switching tabs is instant
+async function loadEverything(): Promise<Loaded> {
+  const [results, watchlist] = await Promise.all([
+    Promise.all(CATEGORIES.map((c) => getEvents(c.id))),
+    getWatchlist(),
+  ]);
+  return {
+    events: Object.fromEntries(results.map((r) => [r.category, r])),
+    watchlist,
+    today: todayInMalaysia(),
+  };
 }
 
 export default function EventBrowser() {
   const [tab, setTab] = useState<CategoryId>("orchestra");
-  const [data, setData] = useState<Partial<Record<CategoryId, CategoryEvents>>>({});
-  const [watchlist, setWatchlist] = useState<WatchItem[]>([]);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
 
-  // Load every tab at once, so switching tabs is instant
-  async function loadAll() {
-    try {
-      const results = await Promise.all(CATEGORIES.map((c) => getEvents(c.id)));
-      setData(Object.fromEntries(results.map((r) => [r.category, r])));
-      setWatchlist(await getWatchlist());
-      setLoadError(null);
-    } catch {
-      setLoadError("Couldn't reach the API. Is it running on port 8000?");
-    }
-  }
-
   useEffect(() => {
-    loadAll();
+    let cancelled = false; // ignore the answer if the page has gone away meanwhile
+    loadEverything()
+      .then((result) => {
+        if (!cancelled) setLoaded(result);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError("Couldn't reach the API. Is it running on port 8000?");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleRefresh() {
@@ -60,7 +59,7 @@ export default function EventBrowser() {
     setMessages([]);
     try {
       setMessages(await refreshCategory(tab));
-      await loadAll();
+      setLoaded(await loadEverything());
     } catch (error) {
       setMessages([error instanceof Error ? error.message : String(error)]);
     } finally {
@@ -68,85 +67,105 @@ export default function EventBrowser() {
     }
   }
 
-  const current = data[tab];
+  const current = loaded?.events[tab];
 
   return (
-    <section className="mt-8">
-      <div className="flex flex-wrap gap-2" role="tablist">
+    <section data-tab={tab} className="mt-10">
+      <div role="tablist" aria-label="Event categories" className="flex gap-1 overflow-x-auto rounded-full border-[1.5px] border-line bg-surface p-1.5">
         {CATEGORIES.map((c) => (
           <button
             key={c.id}
+            type="button"
             role="tab"
+            data-tab={c.id}
             aria-selected={tab === c.id}
-            onClick={() => { setTab(c.id); setMessages([]); }}
-            className={`rounded-full border px-4 py-2 text-sm font-semibold ${
-              tab === c.id ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900" : "border-neutral-300 dark:border-neutral-700"
+            onClick={() => {
+              setTab(c.id);
+              setMessages([]);
+            }}
+            className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 font-display font-medium transition-colors ${
+              tab === c.id ? "bg-accent text-on-accent" : "hover:bg-surface-2"
             }`}
           >
+            <span className={tab === c.id ? "" : "text-accent"}>
+              <TabIcon category={c.id} />
+            </span>
             {c.label}
           </button>
         ))}
       </div>
 
-      {loadError && <p className="mt-6 rounded-lg bg-red-100 p-3 text-red-800">{loadError}</p>}
+      {loadError && <p className="mt-6 rounded-xl border-[1.5px] border-line bg-surface p-4">{loadError}</p>}
 
-      {current && (
-        <div className="mt-6 flex flex-wrap items-center gap-4">
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing || current.next_refresh_at !== null}
-            className="rounded-lg bg-orange-600 px-4 py-2 font-semibold text-white disabled:opacity-40"
-          >
-            {refreshing ? "Checking sources..." : "Refresh"}
-          </button>
-          <span className="text-sm text-neutral-500">
-            {current.refreshed_at ? `Last refreshed ${formatTimestamp(current.refreshed_at)}` : "Never refreshed"}
-            {current.next_refresh_at && ` · next refresh after ${formatTimestamp(current.next_refresh_at)}`}
-          </span>
+      {!loaded && !loadError && (
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-label="Loading events">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-36 animate-pulse rounded-2xl bg-surface-2" />
+          ))}
         </div>
       )}
 
-      {messages.map((m) => (
-        <p key={m} className="mt-3 rounded-lg bg-yellow-100 p-3 text-sm text-yellow-900">{m}</p>
-      ))}
-
-      {current && (
+      {current && loaded && (
         <>
-          <p className="mt-6 text-sm text-neutral-500">{current.events.length} events</p>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {current.events.map((event) => (
-              <article key={event.id} className="rounded-xl border border-neutral-200 p-4 dark:border-neutral-800">
-                {event.is_new && <span className="text-xs font-bold text-orange-600">NEW</span>}
-                <h3 className="font-semibold">{event.title}</h3>
-                <p className="mt-1 text-sm">{formatWhen(event)}</p>
-                {event.details && <p className="mt-1 text-sm text-neutral-500">{event.details}</p>}
-                {event.location && <p className="mt-1 text-sm text-neutral-500">{event.location}</p>}
-                <p className="mt-2 text-sm">
-                  <span className="font-semibold">{event.source}</span>
-                  {event.link && (
-                    <> · <a href={event.link} target="_blank" rel="noopener noreferrer" className="underline">Open</a></>
-                  )}
-                </p>
-              </article>
-            ))}
+          <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={refreshing || current.next_refresh_at !== null}
+              className="rounded-xl bg-accent px-4 py-2 font-semibold text-on-accent transition-opacity disabled:opacity-40"
+            >
+              {refreshing ? "Checking sources..." : "Refresh"}
+            </button>
+            <span className="text-sm text-muted">
+              {current.refreshed_at ? `Last refreshed ${formatTimestamp(current.refreshed_at)}` : "Never refreshed"}
+              {current.next_refresh_at && ` · next refresh after ${formatTimestamp(current.next_refresh_at)}`}
+            </span>
+            <span className="text-sm text-muted sm:ml-auto">
+              {current.events.length} {current.events.length === 1 ? "event" : "events"}
+            </span>
           </div>
-        </>
-      )}
 
-      {tab === "video_games" && watchlist.length > 0 && (
-        <div className="mt-10">
-          <h2 className="text-xl font-semibold">Watchlist</h2>
-          <ul className="mt-3 grid gap-2">
-            {watchlist.map((item) => (
-              <li key={item.name} className="text-sm">
-                <span className="font-semibold">{item.name}</span>
-                {item.note && <span className="text-neutral-500"> · {item.note}</span>}
-                {" · "}<a href={item.search} target="_blank" rel="noopener noreferrer" className="underline">Google it</a>
-                {item.site && <> · <a href={item.site} target="_blank" rel="noopener noreferrer" className="underline">Official site</a></>}
-              </li>
-            ))}
-          </ul>
-        </div>
+          {messages.map((m) => (
+            <p key={m} className="mt-3 rounded-xl bg-surface-2 p-3 text-sm">
+              {m}
+            </p>
+          ))}
+
+          {current.events.length === 0 ? (
+            <p className="mt-8 text-muted">Nothing here right now.</p>
+          ) : (
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {current.events.map((event) => (
+                <EventCard key={event.id} event={event} today={loaded.today} />
+              ))}
+            </div>
+          )}
+
+          {tab === "video_games" && loaded.watchlist.length > 0 && (
+            <div className="mt-12">
+              <h2 className="font-display text-2xl font-semibold">Watchlist</h2>
+              <p className="mt-1 text-muted">Big yearly gaming events to check yourself.</p>
+              <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+                {loaded.watchlist.map((item) => (
+                  <li key={item.name} className="rounded-2xl border-[1.5px] border-line bg-surface p-4">
+                    <span className="font-display text-lg font-semibold">{item.name}</span>
+                    {item.note && <p className="text-sm text-muted">{item.note}</p>}
+                    <p className="mt-2 flex gap-4 text-sm font-semibold text-accent">
+                      <a href={item.search} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                        Google it ↗
+                      </a>
+                      {item.site && (
+                        <a href={item.site} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                          Official site ↗
+                        </a>
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

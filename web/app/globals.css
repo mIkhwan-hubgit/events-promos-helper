@@ -1,26 +1,184 @@
 @import "tailwindcss";
 
+/* ---------- Colour tokens ----------
+   Light values first. The dark values apply when the computer is in dark mode
+   (unless the visitor picked light), or when the visitor picked dark. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --bg: #fbf6ee;
+  --surface: #ffffff;
+  --surface-2: #f4ece1;
+  --ink: #2b2420;
+  --muted: #6f635a;
+  --line: #e7dccd;
+  --books: #e2622a;
+  --tech: #2d6bdf;
+  --orchestra: #7a4bd3;
+  --workshop: #23935a;
+  --games: #d9407f;
+  --sticker: #ffd23f;
+  --sticker-ink: #2b2420;
+  --on-accent: #ffffff;
+  --blob-opacity: 0.55;
+  --accent: var(--orchestra);
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg: #1c1815;
+    --surface: #27211d;
+    --surface-2: #2f2823;
+    --ink: #f6eee5;
+    --muted: #b6a99d;
+    --line: #3b332d;
+    --books: #ff8a4f;
+    --tech: #6f9dff;
+    --orchestra: #ad8eff;
+    --workshop: #4dcb86;
+    --games: #ff6fad;
+    --on-accent: #1c1815;
+    --blob-opacity: 0.32;
+    color-scheme: dark;
   }
 }
 
+:root[data-theme="dark"] {
+  --bg: #1c1815;
+  --surface: #27211d;
+  --surface-2: #2f2823;
+  --ink: #f6eee5;
+  --muted: #b6a99d;
+  --line: #3b332d;
+  --books: #ff8a4f;
+  --tech: #6f9dff;
+  --orchestra: #ad8eff;
+  --workshop: #4dcb86;
+  --games: #ff6fad;
+  --on-accent: #1c1815;
+  --blob-opacity: 0.32;
+  color-scheme: dark;
+}
+
+/* Each tab has its own colour */
+[data-tab="bookstore_promo"] { --accent: var(--books); }
+[data-tab="tech_event"] { --accent: var(--tech); }
+[data-tab="orchestra"] { --accent: var(--orchestra); }
+[data-tab="workshop"] { --accent: var(--workshop); }
+[data-tab="video_games"] { --accent: var(--games); }
+
+/* Let Tailwind use the tokens: bg-surface, text-muted, border-line, bg-accent... */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-books: var(--books);
+  --color-tech: var(--tech);
+  --color-orchestra: var(--orchestra);
+  --color-workshop: var(--workshop);
+  --color-games: var(--games);
+  --font-display: var(--font-fredoka), ui-rounded, system-ui, sans-serif;
+  --font-sans: var(--font-figtree), system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ---------- Theme switch label ----------
+   The small script in layout.tsx sets data-choice on <html> before the page
+   appears, so the button shows the right word straight away. */
+.theme-label { display: none; }
+html:not([data-choice]) .theme-label[data-for="system"],
+html[data-choice="system"] .theme-label[data-for="system"],
+html[data-choice="light"] .theme-label[data-for="light"],
+html[data-choice="dark"] .theme-label[data-for="dark"] { display: inline; }
+
+/* ---------- Hero: drifting colour blobs and floating doodles ---------- */
+.hero-blob {
+  position: absolute;
+  z-index: -1;
+  width: 21rem;
+  height: 21rem;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: var(--blob-opacity);
+}
+.blob-1 { background: var(--books); top: -7.5rem; left: -5rem; animation: drift-1 16s ease-in-out infinite alternate; }
+.blob-2 { background: var(--orchestra); top: -4rem; right: -6rem; animation: drift-2 19s ease-in-out infinite alternate; }
+.blob-3 { background: var(--workshop); bottom: -10.5rem; left: 30%; animation: drift-3 22s ease-in-out infinite alternate; }
+.blob-4 { background: var(--games); bottom: -9rem; right: 6%; width: 16rem; height: 16rem; animation: drift-1 18s ease-in-out infinite alternate-reverse; }
+@keyframes drift-1 { to { transform: translate(7rem, 4rem) scale(1.15); } }
+@keyframes drift-2 { to { transform: translate(-8rem, 5rem) scale(0.9); } }
+@keyframes drift-3 { to { transform: translate(-5rem, -4rem) scale(1.2); } }
+
+.doodle {
+  position: absolute;
+  z-index: -1;
+  color: var(--ink);
+  opacity: 0.5;
+  animation: bob 6s ease-in-out infinite;
+}
+@keyframes bob { 50% { transform: translateY(-10px) rotate(6deg); } }
+
+/* ---------- Event cards ---------- */
+.stamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 3.75rem;
+  padding: 0.5rem 0 0.4rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.stamp-day {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.stamp-month {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.sticker {
+  position: absolute;
+  top: -0.7rem;
+  right: 0.9rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 8px;
+  border: 1.5px solid rgb(0 0 0 / 0.12);
+  box-shadow: 0 2px 0 rgb(0 0 0 / 0.15);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.sticker-yellow { background: var(--sticker); color: var(--sticker-ink); transform: rotate(5deg); }
+.sticker-accent { background: var(--accent); color: var(--on-accent); transform: rotate(-4deg); }
+.sticker-grey { background: var(--surface-2); color: var(--muted); transform: rotate(3deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-blob,
+  .doodle { animation: none; }
 }
