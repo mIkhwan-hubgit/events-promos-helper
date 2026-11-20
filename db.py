@@ -20,10 +20,11 @@ tables_ready = False  # the CREATE TABLE checks only need to run once each time 
 
 def open_database():
     """Online the data lives in Turso; on your computer it's the promos.db file."""
-    url = os.getenv("TURSO_DATABASE_URL")
+    url = os.getenv("TURSO_DATABASE_URL", "").strip()
     if url:
         import turso_serverless  # only needed online
-        conn = turso_serverless.connect(url, auth_token=os.getenv("TURSO_AUTH_TOKEN"))
+        token = os.getenv("TURSO_AUTH_TOKEN", "").strip()  # ignore stray spaces or line breaks from pasting
+        conn = turso_serverless.connect(url, auth_token=token)
         conn.row_factory = turso_serverless.Row  # lets us read rows like dictionaries
         return conn
     conn = sqlite3.connect(DB_PATH)
