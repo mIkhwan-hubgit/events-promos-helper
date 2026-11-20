@@ -3,17 +3,26 @@
 The React website asks this for events. All the fetching, Gemini calls and saving
 still happen in Python, exactly as in the Streamlit app.
 """
+import hashlib
+import hmac
 import json
+import os
 import threading
+import time
 from datetime import timedelta
+from typing import Literal
 from urllib.parse import quote_plus
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 import clock
 import db
 from pipeline import CATEGORIES, COOLDOWN_HOURS, refresh
+
+load_dotenv()  # reads PLANS_PASSWORD (and the Gemini settings) from .env
 
 app = FastAPI(title="What's On Malaysia API")
 
@@ -21,7 +30,7 @@ app = FastAPI(title="What's On Malaysia API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["*"],
 )
 
@@ -109,3 +118,77 @@ def watchlist():
         {**item, "search": f"https://www.google.com/search?q={quote_plus(item['name'] + ' ' + str(year))}"}
         for item in items
     ]
+
+
+
+# ---------- Private plans (Want / Going) ----------
+# Only someone who knows PLANS_PASSWORD can see or change plans. After a correct password,
+# the website gets a "token": an expiry time plus a signature only this server can make.
+# Leave PLANS_PASSWORD unset and plans are switched off entirely.
+
+PLANS_PASSWORD = os.getenv("PLANS_PASSWORD")
+TOKEN_DAYS = 30
+MAX_FAILED_LOGINS = 5  # per visitor, per 15 minutes
+failed_logins: dict[str, list[float]] = {}
+
+
+def sign(expiry: str) -> str:
+    key = (PLANS_PASSWORD or "").encode()
+    return hmac.new(key, f"plans:{expiry}".encode(), hashlib.sha256).hexdigest()
+
+
+def require_owner(authorization: str | None = Header(default=None)):
+    """Stops the request unless it carries a valid, unexpired token."""
+    if not PLANS_PASSWORD:
+        raise HTTPException(status_code=404, detail="Plans are switched off on this site.")
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    expiry, _, signature = token.partition(".")
+    if not expiry.isdigit() or int(expiry) < time.time() or not hmac.compare_digest(signature, sign(expiry)):
+        raise HTTPException(status_code=401, detail="Please unlock your plans again.")
+
+
+class Login(BaseModel):
+    password: str
+
+
+@app.post("/api/login")
+def login(body: Login, request: Request):
+    if not PLANS_PASSWORD:
+        raise HTTPException(status_code=404, detail="Plans are switched off on this site.")
+    visitor = request.client.host if request.client else "unknown"
+    recent = [t for t in failed_logins.get(visitor, []) if t > time.time() - 15 * 60]
+    if len(recent) >= MAX_FAILED_LOGINS:
+        raise HTTPException(status_code=429, detail="Too many wrong passwords. Try again in 15 minutes.")
+    if not hmac.compare_digest(body.password.encode(), PLANS_PASSWORD.encode()):
+        failed_logins[visitor] = recent + [time.time()]
+        raise HTTPException(status_code=401, detail="Wrong password.")
+    failed_logins.pop(visitor, None)
+    expiry = str(int(time.time()) + TOKEN_DAYS * 24 * 3600)
+    return {"token": f"{expiry}.{sign(expiry)}"}
+
+
+@app.get("/api/plans", dependencies=[Depends(require_owner)])
+def get_plans():
+    conn = db.connect()
+    plans = db.load_plans(conn)
+    conn.close()
+    return plans
+
+
+class PlanChange(BaseModel):
+    source: str
+    title_key: str
+    status: Literal["want", "going"] | None  # None removes the plan
+    category: str | None = None
+    title: str | None = None
+    start_date: str | None = None
+    link: str | None = None
+
+
+@app.put("/api/plans", dependencies=[Depends(require_owner)])
+def change_plan(change: PlanChange):
+    conn = db.connect()
+    db.set_plan(conn, change.model_dump(exclude={"status"}), change.status)
+    conn.commit()
+    conn.close()
+    return {"ok": True}

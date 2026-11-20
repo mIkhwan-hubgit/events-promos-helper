@@ -67,3 +67,65 @@ export async function getWatchlist(): Promise<WatchItem[]> {
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
+
+
+
+// ---------- Private plans ----------
+
+export type PlanStatus = "want" | "going";
+
+// What the API stores for each plan (a small copy of the event, so the board works even after the event expires)
+export type Plan = {
+  source: string;
+  title_key: string;
+  status: PlanStatus;
+  category: string | null;
+  title: string | null;
+  start_date: string | null;
+  link: string | null;
+};
+
+// Anything that can be planned: an event from the list, or a plan already on the board
+export type Plannable = Omit<Plan, "status">;
+
+// Thrown when the saved password token is missing, wrong or expired
+export class AuthError extends Error {}
+
+async function check(response: Response) {
+  if (response.status === 401) throw new AuthError(await readError(response));
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export async function login(password: string): Promise<string> {
+  const response = await fetch(`${API_URL}/api/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  if (!response.ok) throw new Error(await readError(response)); // a wrong password is a normal error here
+  const body = await response.json();
+  return body.token;
+}
+
+export async function getPlans(token: string): Promise<Plan[]> {
+  const response = await fetch(`${API_URL}/api/plans`, { headers: { Authorization: `Bearer ${token}` } });
+  return check(response);
+}
+
+export async function savePlan(token: string, item: Plannable, status: PlanStatus | null): Promise<void> {
+  const response = await fetch(`${API_URL}/api/plans`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      source: item.source,
+      title_key: item.title_key,
+      status,
+      category: item.category,
+      title: item.title,
+      start_date: item.start_date,
+      link: item.link,
+    }),
+  });
+  await check(response);
+}

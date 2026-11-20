@@ -65,6 +65,7 @@
 [data-tab="orchestra"] { --accent: var(--orchestra); }
 [data-tab="workshop"] { --accent: var(--workshop); }
 [data-tab="video_games"] { --accent: var(--games); }
+[data-tab="plans"] { --accent: var(--ink); }
 
 /* Let Tailwind use the tokens: bg-surface, text-muted, border-line, bg-accent... */
 @theme inline {
@@ -178,6 +179,17 @@ html[data-choice="dark"] .theme-label[data-for="dark"] { display: inline; }
 .sticker-accent { background: var(--accent); color: var(--on-accent); transform: rotate(-4deg); }
 .sticker-grey { background: var(--surface-2); color: var(--muted); transform: rotate(3deg); }
 .sticker-inline { position: static; display: inline-block; margin-bottom: 0.6rem; }
+
+/* ---------- My plans: Want / Going chips ---------- */
+.plan-chip {
+  display: inline-block;
+  padding: 0 0.45rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.plan-chip-want { background: var(--sticker); color: var(--sticker-ink); }
+.plan-chip-going { background: var(--workshop); color: var(--on-accent); }
 
 /* ---------- Motion: hover lift & glow ---------- */
 .card-hover {

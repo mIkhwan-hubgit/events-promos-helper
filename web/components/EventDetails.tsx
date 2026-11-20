@@ -4,7 +4,9 @@ import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import type { EventItem } from "@/lib/api";
 import { formatWhen } from "@/lib/dates";
+import { originOf } from "@/lib/fun";
 import { stickerFor } from "./EventCard";
+import { usePlans } from "./PlansProvider";
 
 type Props = {
   event: EventItem;
@@ -17,6 +19,8 @@ export default function EventDetails({ event, today, onClose }: Props) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const sticker = stickerFor(event, today);
   const isPromo = event.category === "bookstore_promo";
+  const { unlocked, statusOf, setPlan } = usePlans();
+  const plan = statusOf(event);
 
   useEffect(() => {
     closeButton.current?.focus();
@@ -96,16 +100,41 @@ export default function EventDetails({ event, today, onClose }: Props) {
             )}
           </dl>
 
-          {event.link && (
-            <a
-              href={event.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-on-accent transition-transform hover:-translate-y-0.5"
-            >
-              Open on {event.source} ↗
-            </a>
-          )}
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            {event.link && (
+              <a
+                href={event.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-on-accent transition-transform hover:-translate-y-0.5"
+              >
+                Open on {event.source} ↗
+              </a>
+            )}
+
+            {/* Plan buttons: only shown after unlocking, so other visitors never see them */}
+            {unlocked && (
+              <div className="flex items-center gap-1 rounded-xl bg-surface-2 p-1" role="group" aria-label="My plan">
+                <button
+                  type="button"
+                  aria-pressed={plan === "want"}
+                  onClick={() => setPlan(event, plan === "want" ? null : "want")}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${plan === "want" ? "plan-chip-want" : "hover:bg-surface"}`}
+                >
+                  ★ Want
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={plan === "going"}
+                  onClick={(e) => setPlan(event, plan === "going" ? null : "going", originOf(e.currentTarget))}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${plan === "going" ? "plan-chip-going" : "hover:bg-surface"}`}
+                >
+                  ✓ Going
+                </button>
+              </div>
+            )}
+          </div>
+          {unlocked && plan && <p className="mt-2 text-xs text-muted">Press it again to remove it from your plans.</p>}
         </motion.div>
       </motion.div>
     </motion.div>

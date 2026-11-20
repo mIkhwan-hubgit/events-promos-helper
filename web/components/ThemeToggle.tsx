@@ -27,11 +27,11 @@ export default function ThemeToggle() {
       type="button"
       onClick={cycle}
       aria-label="Change colour theme"
-      className="rounded-full border-[1.5px] border-line bg-surface px-4 py-1.5 text-sm font-semibold hover:border-ink"
+      className="whitespace-nowrap rounded-full border-[1.5px] border-line bg-surface px-3 py-1.5 text-sm font-semibold capitalize hover:border-ink sm:normal-case"
     >
-      <span className="theme-label" data-for="system">Theme: auto</span>
-      <span className="theme-label" data-for="light">Theme: light</span>
-      <span className="theme-label" data-for="dark">Theme: dark</span>
+      <span className="theme-label" data-for="system"><span className="hidden sm:inline">Theme: </span>auto</span>
+      <span className="theme-label" data-for="light"><span className="hidden sm:inline">Theme: </span>light</span>
+      <span className="theme-label" data-for="dark"><span className="hidden sm:inline">Theme: </span>dark</span>
     </button>
   );
 }

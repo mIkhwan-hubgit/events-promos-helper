@@ -3,6 +3,7 @@
 import { motion } from "motion/react";
 import type { EventItem } from "@/lib/api";
 import { dayAndMonth, daysBetween, formatWhen } from "@/lib/dates";
+import { usePlans } from "./PlansProvider";
 
 export type Sticker = { text: string; tone: "yellow" | "accent" | "grey" };
 
@@ -48,6 +49,7 @@ export default function EventCard({ event, today, onOpen }: Props) {
   const stamp = date ? dayAndMonth(date) : null;
   const sticker = stickerFor(event, today);
   const isPromo = event.category === "bookstore_promo";
+  const plan = usePlans().statusOf(event); // only ever set when the plans are unlocked
 
   return (
     // layoutId lets this card grow smoothly into the details window when clicked
@@ -86,6 +88,7 @@ export default function EventCard({ event, today, onOpen }: Props) {
           {event.details && <span className="line-clamp-2">{event.details}</span>}
           {event.location && <span className="line-clamp-1">{event.location}</span>}
           <span>
+            {plan && <span className={`plan-chip plan-chip-${plan} mr-2`}>{plan === "going" ? "✓ Going" : "★ Want"}</span>}
             <span className="font-semibold text-ink">{event.source}</span>
             {event.topic && ` · ${event.topic}`}
             {event.link && (

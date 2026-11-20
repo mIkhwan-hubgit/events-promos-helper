@@ -14,9 +14,11 @@ import {
 } from "@/lib/api";
 import { formatTimestamp, todayInMalaysia } from "@/lib/dates";
 import CalendarView from "./CalendarView";
-import { TabIcon } from "./Doodles";
+import { StarDoodle, TabIcon } from "./Doodles";
 import EventCard from "./EventCard";
 import EventDetails from "./EventDetails";
+import PlansBoard from "./PlansBoard";
+import { usePlans } from "./PlansProvider";
 import TimelineView from "./TimelineView";
 
 type Loaded = {
@@ -24,6 +26,9 @@ type Loaded = {
   watchlist: WatchItem[];
   today: string;
 };
+
+// The five categories, plus "My plans" once unlocked
+type TabId = CategoryId | "plans";
 
 type View = "cards" | "timeline" | "calendar";
 const VIEWS: { id: View; label: string }[] = [
@@ -49,13 +54,18 @@ async function loadEverything(): Promise<Loaded> {
 }
 
 export default function EventBrowser() {
-  const [tab, setTab] = useState<CategoryId>("orchestra");
+  const [chosenTab, setTab] = useState<TabId>("orchestra");
   const [view, setView] = useState<View>("cards");
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [selected, setSelected] = useState<EventItem | null>(null);
+  const { unlocked } = usePlans();
+
+  // After locking, the "My plans" tab disappears, so show Orchestra instead
+  const tab: TabId = chosenTab === "plans" && !unlocked ? "orchestra" : chosenTab;
+  const tabs: { id: TabId; label: string }[] = [...CATEGORIES, ...(unlocked ? [{ id: "plans" as const, label: "My plans" }] : [])];
 
   useEffect(() => {
     let cancelled = false; // ignore the answer if the page has gone away meanwhile
@@ -72,6 +82,7 @@ export default function EventBrowser() {
   }, []);
 
   async function handleRefresh() {
+    if (tab === "plans") return;
     setRefreshing(true);
     setMessages([]);
     try {
@@ -87,16 +98,20 @@ export default function EventBrowser() {
   // useCallback keeps the same function between redraws, so the details window doesn't re-run its setup
   const closeDetails = useCallback(() => setSelected(null), []);
 
-  const current = loaded?.events[tab];
+  const current = tab === "plans" ? undefined : loaded?.events[tab];
+  const allEvents = loaded ? Object.values(loaded.events).flatMap((c) => c?.events ?? []) : [];
 
   return (
     // reducedMotion="user": visitors who turned off animations in their system settings get a calm page
     <MotionConfig reducedMotion="user">
       <section data-tab={tab} className="mt-10">
         <div role="tablist" aria-label="Event categories" className="flex gap-1 overflow-x-auto rounded-full border-[1.5px] border-line bg-surface p-1.5">
-          {CATEGORIES.map((c) => (
-            <button
+          {tabs.map((c) => (
+            <motion.button
               key={c.id}
+              // the "My plans" tab pops in when you unlock
+              initial={c.id === "plans" ? { opacity: 0, scale: 0.6 } : false}
+              animate={{ opacity: 1, scale: 1 }}
               type="button"
               role="tab"
               data-tab={c.id}
@@ -114,10 +129,10 @@ export default function EventBrowser() {
                 <motion.span layoutId="tab-pill" transition={spring} className="absolute inset-0 rounded-full bg-accent" />
               )}
               <span className={`relative ${tab === c.id ? "" : "text-accent"}`}>
-                <TabIcon category={c.id} />
+                {c.id === "plans" ? <StarDoodle size={18} /> : <TabIcon category={c.id} />}
               </span>
               <span className="relative">{c.label}</span>
-            </button>
+            </motion.button>
           ))}
         </div>
 
@@ -129,6 +144,12 @@ export default function EventBrowser() {
               <div key={i} className="h-36 animate-pulse rounded-2xl bg-surface-2" />
             ))}
           </div>
+        )}
+
+        {tab === "plans" && loaded && (
+          <motion.div className="mt-6" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+            <PlansBoard events={allEvents} today={loaded.today} onOpen={setSelected} />
+          </motion.div>
         )}
 
         {current && loaded && (
