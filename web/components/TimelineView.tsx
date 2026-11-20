@@ -29,11 +29,11 @@ export default function TimelineView({ events, today, onOpen }: Props) {
   const days = [...groups.keys()].sort();
 
   return (
-    <div className="timeline relative grid gap-7 pl-8">
+    <div className="timeline relative grid grid-cols-1 gap-7 pl-8">
       {days.map((day) => (
         <motion.section
           key={day}
-          className="timeline-day relative"
+          className="timeline-day relative min-w-0"
           initial={{ opacity: 0, x: -16 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true, amount: 0.3 }}
@@ -43,7 +43,7 @@ export default function TimelineView({ events, today, onOpen }: Props) {
             {formatDay(day, today)}
             <span className="ml-2 font-sans text-sm font-medium text-muted">{relativeLabel(day, today)}</span>
           </h3>
-          <div className="mt-3 grid gap-2.5">
+          <div className="mt-3 grid grid-cols-1 gap-2.5">
             {(groups.get(day) ?? []).map((event) => (
               <button
                 key={event.id}

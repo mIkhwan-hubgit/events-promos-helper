@@ -21,15 +21,15 @@ function LockIcon({ open }: { open: boolean }) {
   );
 }
 
-const pill = "flex items-center gap-1.5 rounded-full border-[1.5px] border-line bg-surface px-3 py-1.5 text-sm font-semibold hover:border-ink";
+const pill = "flex shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-surface px-2.5 py-1.5 text-sm font-semibold hover:border-ink sm:px-3";
 
 export default function TopBar() {
   const { unlocked, openUnlock, lock, soundOn, toggleSound } = usePlans();
 
   return (
     <div className="flex items-center justify-between gap-3 py-5">
-      <span className="whitespace-nowrap font-display text-lg font-semibold">What&apos;s On Malaysia</span>
-      <div className="flex items-center gap-2">
+      <span className="min-w-0 truncate font-display text-base font-semibold sm:text-lg">What&apos;s On Malaysia</span>
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <button type="button" onClick={toggleSound} aria-pressed={soundOn} aria-label="Sound effects" className={pill}>
           <SpeakerIcon on={soundOn} />
         </button>

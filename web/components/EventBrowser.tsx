@@ -184,8 +184,8 @@ export default function EventBrowser() {
                   : " · updates every morning"}
               </span>
 
-              <div className="flex items-center gap-3 sm:ml-auto">
-                <span className="text-sm text-muted">
+              <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:ml-auto sm:w-auto">
+                <span className="whitespace-nowrap text-sm text-muted">
                   {current.events.length} {current.events.length === 1 ? "event" : "events"}
                 </span>
                 <div className="flex rounded-xl bg-surface-2 p-1" aria-label="Layout">
@@ -195,7 +195,7 @@ export default function EventBrowser() {
                       type="button"
                       aria-pressed={view === v.id}
                       onClick={() => setView(v.id)}
-                      className={`relative rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
+                      className={`relative rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors sm:px-3 ${
                         view === v.id ? "text-ink" : "text-muted hover:text-ink"
                       }`}
                     >
