@@ -4,7 +4,7 @@ name: Daily refresh
 
 on:
   schedule:
-    - cron: "0 23 * * *" # 23:00 UTC = 7:00 a.m. Malaysia time (GitHub's clock is UTC)
+    - cron: "7 23 * * *" # 23:00 UTC = 7:00 a.m. Malaysia time (GitHub's clock is UTC)
   workflow_dispatch: # adds a "Run workflow" button on GitHub, to run it by hand
 
 jobs:
