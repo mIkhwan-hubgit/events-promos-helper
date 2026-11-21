@@ -18,7 +18,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 import clock
 import db
@@ -26,7 +26,14 @@ from pipeline import CATEGORIES, COOLDOWN_HOURS, refresh
 
 load_dotenv()  # reads PLANS_PASSWORD (and the Gemini settings) from .env
 
-app = FastAPI(title="What's On Malaysia API")
+# The automatic /docs pages list every endpoint; handy on your computer, not needed in public
+SHOW_DOCS = os.getenv("SHOW_API_DOCS") == "1"
+app = FastAPI(
+    title="What's On Malaysia API",
+    docs_url="/docs" if SHOW_DOCS else None,
+    redoc_url=None,
+    openapi_url="/openapi.json" if SHOW_DOCS else None,
+)
 
 # The website lives at a different address, so allow it to call us.
 # On your computer that's localhost:3000; online, ALLOWED_ORIGINS holds the Vercel address.
@@ -137,7 +144,7 @@ def watchlist():
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 SESSION_SECRET = os.getenv("SESSION_SECRET", "").strip()
 OWNER_EMAIL = os.getenv("OWNER_EMAIL", "").strip().lower()  # you: gets the Refresh button and your old plans
-TOKEN_DAYS = 30
+MAX_PLANS = 300  # per person: plenty for real use, stops anyone filling the database
 
 
 def accounts_on():
@@ -238,18 +245,24 @@ def get_plans(user=Depends(current_user)):
 
 
 class PlanChange(BaseModel):
-    source: str
-    title_key: str
+    # Size limits, so nobody can store huge texts in someone else's database
+    source: str = Field(max_length=100)
+    title_key: str = Field(max_length=500)
     status: Literal["want", "going"] | None  # None removes the plan
-    category: str | None = None
-    title: str | None = None
-    start_date: str | None = None
-    link: str | None = None
+    category: str | None = Field(default=None, max_length=50)
+    title: str | None = Field(default=None, max_length=500)
+    start_date: str | None = Field(default=None, max_length=10)
+    link: str | None = Field(default=None, max_length=2000)
 
 
 @app.put("/api/plans")
 def change_plan(change: PlanChange, user=Depends(current_user)):
     conn = db.connect()
+    if change.status and db.count_user_plans(conn, user["id"]) >= MAX_PLANS:
+        existing = {(p["source"], p["title_key"]) for p in db.load_user_plans(conn, user["id"])}
+        if (change.source, change.title_key) not in existing:
+            conn.close()
+            raise HTTPException(status_code=400, detail=f"You can save up to {MAX_PLANS} plans. Remove some first.")
     db.set_user_plan(conn, user["id"], change.model_dump(exclude={"status"}), change.status)
     conn.commit()
     conn.close()

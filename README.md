@@ -108,6 +108,17 @@ The model wasn't reasoning badly: for *The 9th* (Beethoven's 9th Symphony) it ha
 - **Sign in with Google instead of passwords.** The site never sees or stores a password. The API checks Google's signed message (that it's genuine, meant for this site and not expired), then issues its own short token signed with a server-side secret. Plans are stored per person; anyone can delete their account and plans from the site.
 - **Instant feedback.** Plan changes show immediately and are undone if the server says no, so dragging feels instant even on a sleepy free server.
 
+## Security
+
+- **No passwords stored.** Sign-in is done by Google; the API checks Google's signed message, then issues its own token signed with a server-side secret (30-day expiry). Anyone can delete their account and plans.
+- **Locked-down API.** It only accepts requests from the website's own address, limits the size of everything it stores, caps plans per person, hides its auto-generated docs in production, and only the owner can trigger a refresh.
+- **Security headers** on the website: a Content Security Policy, no framing by other sites, no MIME sniffing, a strict referrer policy and no camera/microphone/location access.
+- **Untrusted input stays untrusted.** Scraped pages and the LLM's answers must fit a strict schema, only `http(s)` links are kept, and React escapes all text.
+- **Supply chain.** Exact versions and lockfiles; Dependabot updates with a 7-day cooldown; GitHub Actions pinned to commit SHAs with a read-only token; secret scanning with push protection; CodeQL code scanning. The server installs only what it runs: keeping the old Streamlit app's libraries out removed 42 known vulnerabilities (in Pillow) from production.
+- **Known trade-off:** the sign-in token is kept in browser storage (simpler with the website and API on different domains); the Content Security Policy limits what an injected script could do with it.
+
+To report a problem, see [SECURITY.md](SECURITY.md).
+
 ## Lessons learned (bugs found and fixed)
 
 - **A UTC date bug** — posts published just after midnight in Malaysia showed the previous day. Found while writing the answer sheet, not by looking at the app.

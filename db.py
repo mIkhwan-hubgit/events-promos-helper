@@ -252,3 +252,6 @@ def set_user_plan(conn, user_id, item, status):
         VALUES (:user_id, :source, :title_key, :status, :category, :title, :start_date, :link)
         ON CONFLICT(user_id, source, title_key) DO UPDATE SET status = excluded.status
     """, {**item, "user_id": user_id, "status": status})
+
+def count_user_plans(conn, user_id):
+    return conn.execute("SELECT COUNT(*) AS n FROM user_plans WHERE user_id = ?", (user_id,)).fetchone()["n"]

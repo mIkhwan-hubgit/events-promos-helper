@@ -4,23 +4,31 @@ name: Daily refresh
 
 on:
   schedule:
-    - cron: "7 23 * * *" # 23:00 UTC = 7:00 a.m. Malaysia time (GitHub's clock is UTC)
+    - cron: "7 23 * * *" # 23:07 UTC = 7:07 a.m. Malaysia time (GitHub's clock is UTC)
   workflow_dispatch: # adds a "Run workflow" button on GitHub, to run it by hand
+
+# This job only needs to read the code. It never changes the repository.
+permissions:
+  contents: read
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
+      # Each action is pinned to an exact commit, so a hijacked version tag can't swap in different code.
+      # The comment says which release that commit is; Dependabot keeps both up to date.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false # don't leave a GitHub token lying around for later steps
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version-file: .python-version
           cache: pip
 
       # Keep Gemini's saved answers between runs, so unchanged pages don't use quota again
-      - uses: actions/cache@v6
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache
           key: gemini-cache-${{ github.run_id }}

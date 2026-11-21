@@ -1,0 +1,27 @@
+# Dependabot checks every week for newer versions of the libraries this project uses,
+# and opens a pull request for each update so you can review it before it goes live.
+version: 2
+updates:
+  - package-ecosystem: "pip" # Python: requirements.txt and requirements-streamlit.txt
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7 # wait a week after a release: hijacked versions are usually caught within days
+
+  - package-ecosystem: "npm" # the website: web/package.json
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7
+    groups:
+      website:
+        patterns: ["*"] # one pull request for all website updates instead of many
+
+  - package-ecosystem: "github-actions" # the actions used in .github/workflows
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    cooldown:
+      default-days: 7

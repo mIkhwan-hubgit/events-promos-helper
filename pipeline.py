@@ -26,6 +26,12 @@ CATEGORIES = {
     "video_games": "🎮 Video games",
 }
 
+def safe_link(link):
+    """Only keep normal web links. Text read from other websites (and the LLM's answers about it) is
+    untrusted, so a "javascript:" or other odd link is dropped and the source's own page is used instead."""
+    if link and link.strip().lower().startswith(("https://", "http://")):
+        return link.strip()
+    return None
 
 def sources_for(category):
     return [s for s in SOURCES if category in s.get("categories", [s["category"]])]
@@ -91,7 +97,7 @@ def refresh(category):
                 seen_links.add(p.link)
             row.setdefault("topic", None)  # bookstore promos have no topic
             row["source"] = source["name"]
-            row["link"] = p.link or source["url"]
+            row["link"] = safe_link(p.link) or source["url"]
             db.save_promo(conn, row, run_time)
     conn.commit()
     conn.close()
