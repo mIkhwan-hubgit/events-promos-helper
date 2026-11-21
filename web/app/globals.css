@@ -179,6 +179,7 @@ html[data-choice="dark"] .theme-label[data-for="dark"] { display: inline; }
 .sticker-accent { background: var(--accent); color: var(--on-accent); transform: rotate(-4deg); }
 .sticker-grey { background: var(--surface-2); color: var(--muted); transform: rotate(3deg); }
 .sticker-inline { position: static; display: inline-block; margin-bottom: 0.6rem; }
+.sticker-mini { position: static; display: inline-block; padding: 0.05rem 0.45rem; font-size: 0.72rem; }
 
 /* ---------- My plans: Want / Going chips ---------- */
 .plan-chip {

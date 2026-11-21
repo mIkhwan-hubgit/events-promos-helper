@@ -16,7 +16,7 @@ It uses an LLM (Google Gemini) only where judgement is needed — reading messy 
 - **Five tabs**, each with its own colour: Books · Tech · Orchestra · Workshops · Video games.
 - **Three ways to browse:** cards, a timeline, or a month calendar (tap a busy day to see everything on it).
 - **Fresh every morning** — a scheduled job refreshes every tab at about 7 a.m. Malaysia time, so visitors never wait for scraping.
-- **Stickers** for what's new, on now, starting today or tomorrow, ending soon, and sold out.
+- **Stickers** for what's new, on now, starting today or tomorrow, ending soon, and sold out, plus your own ★ Want / ✓ Going marks, shown in all three views (cards, timeline and calendar).
 - **Reads offers shown only in images** — e.g. a "25% discount" that appears on a banner but nowhere in the text.
 - **The same event from several sites appears once**, even when the sites word the title differently or disagree on the first day.
 - **Personal Want / Going plans** — sign in with Google, then mark events or drag them between two columns. Confetti when you decide to go; sound effects are optional and off by default. Plans are private and follow you across devices.

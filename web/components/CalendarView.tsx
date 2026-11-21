@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import type { EventItem } from "@/lib/api";
 import { formatDay } from "@/lib/dates";
 import { displayDate } from "./EventCard";
+import { usePlans } from "./PlansProvider";
 
 type Props = {
   events: EventItem[];
@@ -26,6 +27,7 @@ function DayList({ day, events, today, onPick, onClose }: {
   onClose: () => void;
 }) {
   const closeButton = useRef<HTMLButtonElement>(null);
+  const { statusOf } = usePlans();
 
   useEffect(() => {
     const opener = document.activeElement as HTMLElement | null;
@@ -84,6 +86,11 @@ function DayList({ day, events, today, onPick, onClose }: {
               >
                 <span className="block font-semibold leading-snug">{event.title}</span>
                 <span className="text-sm font-semibold text-accent">{event.source}</span>
+                {statusOf(event) && (
+                  <span className={`plan-chip plan-chip-${statusOf(event)} ml-2`}>
+                    {statusOf(event) === "going" ? "✓ Going" : "★ Want"}
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -95,6 +102,7 @@ function DayList({ day, events, today, onPick, onClose }: {
 
 // Up to three month grids, with each event shown on every day it runs
 export default function CalendarView({ events, today, onOpen }: Props) {
+  const { statusOf } = usePlans();
   const [openDay, setOpenDay] = useState<string | null>(null);
   const closeDay = useCallback(() => setOpenDay(null), []);
 
@@ -170,6 +178,8 @@ export default function CalendarView({ events, today, onOpen }: Props) {
                           className="truncate rounded px-1 text-left text-[11px] leading-snug transition-colors hover:bg-accent hover:text-on-accent"
                           style={{ background: "color-mix(in srgb, var(--accent) 22%, var(--surface))" }}
                         >
+                          {/* a star or tick in front of events you've planned */}
+                          {statusOf(event) === "going" ? "✓ " : statusOf(event) === "want" ? "★ " : ""}
                           {event.title}
                         </button>
                       ))}
