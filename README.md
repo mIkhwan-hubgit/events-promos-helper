@@ -7,7 +7,7 @@ It uses an LLM (Google Gemini) only where judgement is needed — reading messy 
 **Live site:** https://ikhwan-events-helper.vercel.app
 
 ![The website on a computer](docs/screenshot-site.png)
-![The website on a phone](docs/screenshot-phone.png)
+![The website on a phone](docs/screenshot-phone.jpg)
 
 ---
 
@@ -143,6 +143,7 @@ To report a problem, see [SECURITY.md](SECURITY.md).
 - **Schedules on the hour are unreliable** — GitHub is busiest at the start of each hour and can delay or drop scheduled runs then, so the job runs at 7:07 instead of 7:00.
 - **One long line made the whole page zoom out on phones** — in a CSS grid, an item won't shrink below its longest unbreakable line by default. The timeline grew three times wider than the screen until the grid was told it may shrink (`minmax(0, 1fr)`).
 - **Redeploying the wrong version** — on the hosting dashboard, "Redeploy" on an older row rebuilt an older commit and quietly replaced the newest one.
+- **A one-line edit broke only sign-in** — while adding a new setting, an existing one (`TOKEN_DAYS`) was overwritten. Browsing still worked, so nothing looked wrong until someone signed in and the API crashed. The browser reported it as a confusing "CORS" error, because a crashed server sends no permission headers; the server's own log showed the real cause (`NameError`). Lesson: read the server log first, and test the sign-in path before every release.
 - **Rejected sources:** a bookshop feed abandoned since 2023, a ticketing site's blog feed, a gaming news feed with one Malaysian event in two months of posts, allevents.in (its robots.txt blocks AI crawlers such as ClaudeBot from the whole site; since this project sends listings to an LLM, I respected that), Eventbrite (no public event-search API, and its terms forbid scraping), eventsize.com (only stale listings), the KLCC Convention Centre page (events load in the browser; its big events already come via other sources), and two sites that block automated visitors outright.
 
 ## Limitations
@@ -187,7 +188,7 @@ SESSION_SECRET=a-long-random-string
 OWNER_EMAIL=you@gmail.com
 ```
 
-Without `TURSO_DATABASE_URL`, everything uses a local `promos.db` file. The three sign-in settings are optional: leave them out and accounts are switched off.
+Without `TURSO_DATABASE_URL`, everything uses a local `promos.db` file. The three sign-in settings are optional: leave them out and accounts are switched off. Add `SHOW_API_DOCS=1` to see the API's automatic documentation at http://localhost:8000/docs (it's hidden on the live server).
 
 ```powershell
 python refresh_all.py                            # fill the database (all tabs)
@@ -222,6 +223,13 @@ python eval_events_run.py   # tech-event filter
 python eval_kinds_run.py    # orchestra / workshop / video games sorting
 ```
 
+**The original Streamlit version** needs a few extra libraries, kept out of the live server on purpose:
+
+```powershell
+python -m pip install -r requirements-streamlit.txt
+streamlit run app.py
+```
+
 ## Going live (what each service needs)
 
 | Service | Settings |
@@ -248,8 +256,12 @@ clock.py                Malaysia-time helpers
 copy_to_turso.py        One-off copy of a local database into Turso
 watchlist.json          Hand-written list of video game events to check
 app.py                  The original Streamlit version
+requirements.txt        Libraries for the live server and the daily job
+requirements-streamlit.txt  Extra libraries for the Streamlit version (local only)
 eval_*.py, eval/        Accuracy tests: frozen snapshots and hand-labelled answer sheets
+SECURITY.md             How to report a security problem
 .github/workflows/      The daily refresh schedule
+.github/dependabot.yml  Weekly dependency updates (with a 7-day cooldown)
 web/                    The website (Next.js)
   app/                  Pages: the main page and /privacy
   components/           Tabs, cards, timeline, calendar, details window, plans board, sign-in
