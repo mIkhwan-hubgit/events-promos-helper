@@ -123,13 +123,18 @@ def find_existing(conn, row):
             ).fetchone()
             if hit:
                 return hit["source"], hit["title_key"]
-        # ...and so does the same start date with a near-identical title, even from another site
-        for existing in conn.execute(
-            "SELECT source, title_key FROM promos WHERE category = ? AND start_date = ?",
-            (row["category"], row["start_date"]),
-        ):
-            if similar(key, existing["title_key"]):
-                return existing["source"], existing["title_key"]
+        # ...and so do overlapping dates with a near-identical title, even from another site.
+        # (Sites disagree by a day sometimes: one lists 19-22 Nov, another 20-22 Nov.)
+        # Oldest first, so the copy saved first always wins.
+        if row["start_date"]:
+            for existing in conn.execute(
+                """SELECT source, title_key FROM promos
+                   WHERE category = ? AND start_date <= ? AND COALESCE(end_date, start_date) >= ?
+                   ORDER BY id""",
+                (row["category"], row["end_date"] or row["start_date"], row["start_date"]),
+            ):
+                if similar(key, existing["title_key"]):
+                    return existing["source"], existing["title_key"]
         return row["source"], key
 
     # Promos: the LLM words titles slightly differently between runs, so match close titles
