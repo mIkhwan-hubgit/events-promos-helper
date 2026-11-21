@@ -1,12 +1,3 @@
-import sqlite3
-
-import clock
-
-from difflib import SequenceMatcher
-
-DB_PATH = "promos.db"
-
-
 import os
 import sqlite3
 
@@ -72,6 +63,28 @@ def connect():
             start_date TEXT,
             link TEXT,
             PRIMARY KEY (source, title_key)
+        )
+    """)
+    # Sign in with Google: one row per person, and each person's own Want / Going plans
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            name TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS user_plans (
+            user_id TEXT NOT NULL,
+            source TEXT NOT NULL,
+            title_key TEXT NOT NULL,
+            status TEXT NOT NULL,
+            category TEXT,
+            title TEXT,
+            start_date TEXT,
+            link TEXT,
+            PRIMARY KEY (user_id, source, title_key)
         )
     """)
     columns = [row["name"] for row in conn.execute("PRAGMA table_info(promos)")]
@@ -178,3 +191,59 @@ def set_plan(conn, item, status):
         VALUES (:source, :title_key, :status, :category, :title, :start_date, :link)
         ON CONFLICT(source, title_key) DO UPDATE SET status = excluded.status
     """, {**item, "status": status})
+    
+
+# ---------- Accounts (Sign in with Google) ----------
+# The old plans table above is still used by the Streamlit app (app.py).
+
+def get_user(conn, user_id):
+    row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def save_user(conn, user_id, email, name):
+    """Adds a new person, or updates their email and name. Returns True if they're new."""
+    is_new = get_user(conn, user_id) is None
+    conn.execute("""
+        INSERT INTO users (id, email, name, created_at) VALUES (?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name
+    """, (user_id, email, name, clock.now().isoformat(timespec="seconds")))
+    return is_new
+
+
+def delete_user(conn, user_id):
+    """Removes a person and all their plans for good."""
+    conn.execute("DELETE FROM user_plans WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+
+def copy_old_plans(conn, user_id):
+    """Gives the plans made before accounts existed to the site owner."""
+    conn.execute("""
+        INSERT OR IGNORE INTO user_plans (user_id, source, title_key, status, category, title, start_date, link)
+        SELECT ?, source, title_key, status, category, title, start_date, link FROM plans
+    """, (user_id,))
+
+
+def load_user_plans(conn, user_id):
+    rows = conn.execute(
+        "SELECT source, title_key, status, category, title, start_date, link FROM user_plans "
+        "WHERE user_id = ? ORDER BY start_date",
+        (user_id,),
+    )
+    return [dict(r) for r in rows]
+
+
+def set_user_plan(conn, user_id, item, status):
+    """status is 'want', 'going', or None to remove the plan."""
+    if status is None:
+        conn.execute(
+            "DELETE FROM user_plans WHERE user_id = ? AND source = ? AND title_key = ?",
+            (user_id, item["source"], item["title_key"]),
+        )
+        return
+    conn.execute("""
+        INSERT INTO user_plans (user_id, source, title_key, status, category, title, start_date, link)
+        VALUES (:user_id, :source, :title_key, :status, :category, :title, :start_date, :link)
+        ON CONFLICT(user_id, source, title_key) DO UPDATE SET status = excluded.status
+    """, {**item, "user_id": user_id, "status": status})

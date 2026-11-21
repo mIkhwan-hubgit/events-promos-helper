@@ -61,7 +61,7 @@ export default function EventBrowser() {
   const [refreshing, setRefreshing] = useState(false);
   const [messages, setMessages] = useState<string[]>([]);
   const [selected, setSelected] = useState<EventItem | null>(null);
-  const { unlocked, token } = usePlans();
+  const { unlocked, token, isOwner } = usePlans();
   const [slow, setSlow] = useState(false);
 
   // After locking, the "My plans" tab disappears, so show Orchestra instead
@@ -166,8 +166,8 @@ export default function EventBrowser() {
         {current && loaded && (
           <>
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-3">
-              {/* Everything refreshes by itself every morning; the button is only for you, when unlocked */}
-              {unlocked && (
+              {/* Everything refreshes by itself every morning; the button is only for you, the site owner */}
+              {isOwner && (
                 <button
                   type="button"
                   onClick={handleRefresh}
@@ -179,7 +179,7 @@ export default function EventBrowser() {
               )}
               <span className="text-sm text-muted">
                 {current.refreshed_at ? `Last refreshed ${formatTimestamp(current.refreshed_at)}` : "Never refreshed"}
-                {unlocked
+                {isOwner
                   ? current.next_refresh_at && ` · next refresh after ${formatTimestamp(current.next_refresh_at)}`
                   : " · updates every morning"}
               </span>

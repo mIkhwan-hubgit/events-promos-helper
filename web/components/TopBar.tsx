@@ -12,11 +12,11 @@ function SpeakerIcon({ on }: { on: boolean }) {
   );
 }
 
-function LockIcon({ open }: { open: boolean }) {
+function PersonIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="4" y="11" width="16" height="10" rx="2.5" />
-      <path d={open ? "M8 11V7a4 4 0 017.6-1.7" : "M8 11V7a4 4 0 018 0v4"} />
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
     </svg>
   );
 }
@@ -24,7 +24,8 @@ function LockIcon({ open }: { open: boolean }) {
 const pill = "flex shrink-0 items-center gap-1.5 rounded-full border-[1.5px] border-line bg-surface px-2.5 py-1.5 text-sm font-semibold hover:border-ink sm:px-3";
 
 export default function TopBar() {
-  const { unlocked, openUnlock, lock, soundOn, toggleSound } = usePlans();
+  const { user, openUnlock, openAccount, soundOn, toggleSound } = usePlans();
+  const firstName = user?.name?.split(" ")[0] ?? "Me";
 
   return (
     <div className="flex items-center justify-between gap-3 py-5">
@@ -33,11 +34,21 @@ export default function TopBar() {
         <button type="button" onClick={toggleSound} aria-pressed={soundOn} aria-label="Sound effects" className={pill}>
           <SpeakerIcon on={soundOn} />
         </button>
-        <button type="button" onClick={unlocked ? lock : openUnlock} className={pill}>
-          <LockIcon open={unlocked} />
-          <span className="hidden sm:inline">{unlocked ? "Lock plans" : "My plans"}</span>
-          <span className="sr-only sm:hidden">{unlocked ? "Lock plans" : "Unlock my plans"}</span>
-        </button>
+        {user ? (
+          <button type="button" onClick={openAccount} className={pill} aria-label={`Your account (${firstName})`}>
+            {/* a round badge with your first initial */}
+            <span aria-hidden="true" className="grid h-[18px] w-[18px] place-items-center rounded-full bg-ink text-[11px] font-bold text-bg">
+              {firstName[0]?.toUpperCase()}
+            </span>
+            <span className="hidden sm:inline">{firstName}</span>
+          </button>
+        ) : (
+          <button type="button" onClick={openUnlock} className={pill}>
+            <PersonIcon />
+            <span className="hidden sm:inline">Sign in</span>
+            <span className="sr-only sm:hidden">Sign in</span>
+          </button>
+        )}
         <ThemeToggle />
       </div>
     </div>

@@ -2,19 +2,33 @@
 
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AuthError, getPlans, savePlan, type Plan, type PlanStatus, type Plannable } from "@/lib/api";
+import {
+  AuthError,
+  deleteAccount,
+  getMe,
+  getPlans,
+  savePlan,
+  type Plan,
+  type PlanStatus,
+  type Plannable,
+  type User,
+} from "@/lib/api";
 import { celebrate, playSound, type Origin } from "@/lib/fun";
+import { forgetGoogleChoice } from "@/lib/google";
 import { getSoundOn, getToken, setSoundOn, setToken, subscribe } from "@/lib/session";
-import UnlockDialog from "./UnlockDialog";
+import AccountDialog from "./AccountDialog";
+import SignInDialog from "./SignInDialog";
 
 type PlansContextValue = {
-  unlocked: boolean;
+  unlocked: boolean; // signed in
   token: string | null;
+  user: User | null;
+  isOwner: boolean; // you, the site owner: gets the Refresh button
   plans: Plan[];
   statusOf: (item: Plannable) => PlanStatus | null;
   setPlan: (item: Plannable, status: PlanStatus | null, origin?: Origin) => void;
-  openUnlock: () => void;
-  lock: () => void;
+  openUnlock: () => void; // the sign-in window
+  openAccount: () => void;
   soundOn: boolean;
   toggleSound: () => void;
 };
@@ -30,34 +44,38 @@ export function usePlans() {
 const keyOf = (item: Plannable) => `${item.source}|${item.title_key}`;
 const EMPTY = new Map<string, Plan>();
 
-// Holds "am I unlocked?" and the Want/Going plans for the whole page
+type Loaded = { token: string; user: User; plans: Map<string, Plan> };
+
+// Holds "who is signed in?" and their Want/Going plans for the whole page
 export default function PlansProvider({ children }: { children: ReactNode }) {
-  // The server can't see this browser's storage, so it always draws the page locked and quiet
+  // The server can't see this browser's storage, so it always draws the page signed out and quiet
   const token = useSyncExternalStore(subscribe, getToken, () => null);
   const soundOn = useSyncExternalStore(subscribe, getSoundOn, () => false);
 
-  // The plans, remembered together with the token they were loaded for
-  const [loaded, setLoaded] = useState<{ token: string; plans: Map<string, Plan> } | null>(null);
-  const [unlockOpen, setUnlockOpen] = useState(false);
+  // The person and their plans, remembered together with the token they were loaded for
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const plans = token && loaded?.token === token ? loaded.plans : EMPTY;
+  const current = token && loaded?.token === token ? loaded : null;
+  const plans = current?.plans ?? EMPTY;
 
   function showNotice(text: string) {
     setNotice(text);
-    setTimeout(() => setNotice((current) => (current === text ? null : current)), 4000);
+    setTimeout(() => setNotice((now) => (now === text ? null : now)), 4000);
   }
 
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
-    getPlans(token)
-      .then((list) => {
-        if (!cancelled) setLoaded({ token, plans: new Map(list.map((p) => [keyOf(p), p])) });
+    Promise.all([getMe(token), getPlans(token)])
+      .then(([user, list]) => {
+        if (!cancelled) setLoaded({ token, user, plans: new Map(list.map((p) => [keyOf(p), p])) });
       })
       .catch((error) => {
         if (cancelled) return;
-        if (error instanceof AuthError) setToken(null); // the password changed or the token expired
+        if (error instanceof AuthError) setToken(null); // signed out elsewhere, deleted, or expired
         else setNotice("Couldn't load your plans.");
       });
     return () => {
@@ -66,17 +84,18 @@ export default function PlansProvider({ children }: { children: ReactNode }) {
   }, [token]);
 
   // Change one plan in the page straight away (the "optimistic" update)
-  function putLocal(currentToken: string, key: string, plan: Plan | null) {
+  function putLocal(key: string, plan: Plan | null) {
     setLoaded((previous) => {
-      const next = new Map(previous?.token === currentToken ? previous.plans : EMPTY);
+      if (!previous || previous.token !== token) return previous;
+      const next = new Map(previous.plans);
       if (plan) next.set(key, plan);
       else next.delete(key);
-      return { token: currentToken, plans: next };
+      return { ...previous, plans: next };
     });
   }
 
   function setPlan(item: Plannable, status: PlanStatus | null, origin?: Origin) {
-    if (!token) return;
+    if (!token || !current) return;
     const key = keyOf(item);
     const before = plans.get(key) ?? null;
     if ((before?.status ?? null) === status) return;
@@ -92,31 +111,39 @@ export default function PlansProvider({ children }: { children: ReactNode }) {
           link: item.link,
         }
       : null;
-    putLocal(token, key, plan);
+    putLocal(key, plan);
 
     if (status === "going") celebrate(origin);
     if (soundOn) playSound(status ?? "remove");
 
     // Then tell the API. If that fails, put things back the way they were.
     savePlan(token, item, status).catch((error) => {
-      putLocal(token, key, before);
+      putLocal(key, before);
       if (error instanceof AuthError) {
         setToken(null);
-        setUnlockOpen(true);
+        setSignInOpen(true);
       } else {
-        showNotice("Couldn't save that change. Is the API running?");
+        showNotice("Couldn't save that change. Please try again.");
       }
     });
   }
 
+  function signOut() {
+    setToken(null);
+    setAccountOpen(false);
+    forgetGoogleChoice();
+  }
+
   const value: PlansContextValue = {
-    unlocked: token !== null,
+    unlocked: current !== null,
     token,
+    user: current?.user ?? null,
+    isOwner: current?.user.is_owner ?? false,
     plans: [...plans.values()].sort((a, b) => (a.start_date ?? "9999").localeCompare(b.start_date ?? "9999")),
     statusOf: (item) => plans.get(keyOf(item))?.status ?? null,
     setPlan,
-    openUnlock: () => setUnlockOpen(true),
-    lock: () => setToken(null),
+    openUnlock: () => setSignInOpen(true),
+    openAccount: () => setAccountOpen(true),
     soundOn,
     toggleSound: () => {
       setSoundOn(!soundOn);
@@ -128,12 +155,26 @@ export default function PlansProvider({ children }: { children: ReactNode }) {
     <PlansContext.Provider value={value}>
       {children}
       <AnimatePresence>
-        {unlockOpen && (
-          <UnlockDialog
-            onClose={() => setUnlockOpen(false)}
-            onUnlocked={(newToken) => {
+        {signInOpen && (
+          <SignInDialog
+            onClose={() => setSignInOpen(false)}
+            onSignedIn={(newToken) => {
               setToken(newToken);
-              setUnlockOpen(false);
+              setSignInOpen(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {accountOpen && current && (
+          <AccountDialog
+            user={current.user}
+            onClose={() => setAccountOpen(false)}
+            onSignOut={signOut}
+            onDelete={async () => {
+              await deleteAccount(current.token);
+              signOut();
+              showNotice("Your account and plans have been deleted.");
             }}
           />
         )}

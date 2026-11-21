@@ -36,11 +36,11 @@ export function subscribe(listener: () => void) {
   };
 }
 
-// The token looks like "1797768374.abc123...": the first part is when it expires (in seconds)
+// The token looks like "1234567890.1797768374.abc123...": your Google ID, when it expires (in seconds), a signature
 export function getToken(): string | null {
   const token = read(TOKEN_KEY);
   if (!token) return null;
-  const expiry = Number(token.split(".")[0]);
+  const expiry = Number(token.split(".")[1]);
   return expiry * 1000 > Date.now() ? token : null;
 }
 

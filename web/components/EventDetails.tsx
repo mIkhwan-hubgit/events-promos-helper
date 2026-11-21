@@ -19,7 +19,7 @@ export default function EventDetails({ event, today, onClose }: Props) {
   const closeButton = useRef<HTMLButtonElement>(null);
   const sticker = stickerFor(event, today);
   const isPromo = event.category === "bookstore_promo";
-  const { unlocked, statusOf, setPlan } = usePlans();
+  const { unlocked, statusOf, setPlan, openUnlock } = usePlans();
   const plan = statusOf(event);
 
   useEffect(() => {
@@ -112,7 +112,18 @@ export default function EventDetails({ event, today, onClose }: Props) {
               </a>
             )}
 
-            {/* Plan buttons: only shown after unlocking, so other visitors never see them */}
+            {/* Not signed in yet: invite them to sign in and start planning */}
+            {!unlocked && (
+              <button
+                type="button"
+                onClick={openUnlock}
+                className="rounded-xl bg-surface-2 px-3 py-2.5 text-sm font-semibold hover:bg-line"
+              >
+                ★ Sign in to save to your plans
+              </button>
+            )}
+
+            {/* Plan buttons: only shown when signed in */}
             {unlocked && (
               <div className="flex items-center gap-1 rounded-xl bg-surface-2 p-1" role="group" aria-label="My plan">
                 <button

@@ -101,15 +101,28 @@ async function check(response: Response) {
   return response.json();
 }
 
-export async function login(password: string): Promise<string> {
-  const response = await fetch(`${API_URL}/api/login`, {
+// The signed-in person, as the API describes them
+export type User = { name: string | null; email: string; is_owner: boolean };
+
+// Swaps Google's "this is really them" message for this site's own token
+export async function loginWithGoogle(credential: string): Promise<{ token: string; user: User }> {
+  const response = await fetch(`${API_URL}/api/login/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ credential }),
   });
-  if (!response.ok) throw new Error(await readError(response)); // a wrong password is a normal error here
-  const body = await response.json();
-  return body.token;
+  if (!response.ok) throw new Error(await readError(response));
+  return response.json();
+}
+
+export async function getMe(token: string): Promise<User> {
+  const response = await fetch(`${API_URL}/api/me`, { headers: { Authorization: `Bearer ${token}` } });
+  return check(response);
+}
+
+export async function deleteAccount(token: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/me`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+  await check(response);
 }
 
 export async function getPlans(token: string): Promise<Plan[]> {
