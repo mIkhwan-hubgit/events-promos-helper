@@ -144,6 +144,7 @@ def watchlist():
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "").strip()
 SESSION_SECRET = os.getenv("SESSION_SECRET", "").strip()
 OWNER_EMAIL = os.getenv("OWNER_EMAIL", "").strip().lower()  # you: gets the Refresh button and your old plans
+TOKEN_DAYS = 30
 MAX_PLANS = 300  # per person: plenty for real use, stops anyone filling the database
 
 
