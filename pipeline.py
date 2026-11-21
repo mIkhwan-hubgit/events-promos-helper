@@ -2,6 +2,7 @@
 
 Shared by the Streamlit app (app.py) and the web API (api.py).
 """
+import re
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
@@ -18,6 +19,23 @@ EVENT_FETCHERS = {"ical": fetch_ical_events, "jsonld": fetch_jsonld_events, "clo
                   "mwo": fetch_mwo_events, "klec": fetch_klec_events}
 EMPTY_IS_NORMAL = set(EVENT_FETCHERS) | {"concert_page"}  # sources where finding nothing isn't a failure
 COOLDOWN_HOURS = 6
+
+
+# A plain-code safety net for bookstore promos. Gemini is told to skip sales abroad, but a prompt rule
+# isn't a guarantee, so anything mentioning a foreign currency, city, country or handle is dropped too.
+FOREIGN_HINTS = re.compile(
+    r"\b(AED|SGD|THB|PHP|IDR|USD|HKD|AUD|GBP|EUR|INR|VND"
+    r"|UAE|Dubai|Abu Dhabi|Sharjah|Ajman|Singapore|Bangkok|Thailand|Manila|Philippines|Cebu|Jakarta|Indonesia"
+    r"|Taiwan|Taipei|Sri Lanka|Colombo|Pakistan|Lahore|Karachi|Nigeria|Lagos|Vietnam|Hanoi|Brunei|Korea|Seoul)\b"
+    r"|S\$|US\$|₱|฿|£|€|₹|\bRp\s?\d|\.uae\b|\.sg\b|\.ph\b",
+    re.IGNORECASE,
+)
+
+
+def looks_abroad(*texts):
+    """The foreign word found (e.g. "AED"), or None if nothing points outside Malaysia."""
+    match = FOREIGN_HINTS.search(" ".join(t for t in texts if t))
+    return match.group(0) if match else None
 CATEGORIES = {
     "bookstore_promo": "📚 Books",
     "tech_event": "💻 Tech events",
@@ -57,7 +75,14 @@ def process_source(source):
             events = classify_events(events, source["name"])
         return [to_promo(e) for e in events]
     text, images = FETCHERS[source["type"]](source["url"])
-    return extract_promos(source["name"], text, images)
+    kept = []
+    for promo in extract_promos(source["name"], text, images):
+        hint = looks_abroad(promo.title, promo.details, promo.location, promo.link)
+        if hint:
+            print(f'{source["name"]}: skipped "{promo.title}" (looks like a sale abroad: {hint})')
+        else:
+            kept.append(promo)
+    return kept
 
 
 def refresh(category):

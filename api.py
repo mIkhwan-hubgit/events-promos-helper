@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 import clock
 import db
-from pipeline import CATEGORIES, COOLDOWN_HOURS, refresh
+from pipeline import CATEGORIES, COOLDOWN_HOURS, looks_abroad, refresh
 
 load_dotenv()  # reads PLANS_PASSWORD (and the Gemini settings) from .env
 
@@ -88,6 +88,8 @@ def events(category: str, show_expired: bool = False):
                 continue  # already over
             if not r["end_date"] and r["last_seen"] < stale_cutoff:
                 continue  # no end date and not seen for 30 days
+        if category == "bookstore_promo" and looks_abroad(r["title"], r["details"], r["location"], r["link"]):
+            continue  # a sale abroad that was saved before the safety net existed
         r["is_new"] = info["count"] > 1 and r["first_seen"] == info["latest"]
         kept.append(r)
     kept.sort(key=lambda r: (r["start_date"] or "9999", r["title"]))

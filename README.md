@@ -88,6 +88,7 @@ The model wasn't reasoning badly: for *The 9th* (Beethoven's 9th Symphony) it ha
 - **LLM only where judgement is needed.** Event feeds already contain exact dates and venues, so they're parsed with code; Gemini only returns *which* events belong where (as numbers), so it can never get a date wrong.
 - **Structured output with a schema.** Gemini must return JSON matching a Pydantic model. Fields like `channel`, `topic` and the event kind are enums, so free-text values like "Via Kota Buku" are impossible.
 - **Give the model enough information.** When the classifier missed concerts, the fix wasn't rewording the prompt but adding each event's page summary — read once and cached, and only for vague categories like "Music" or "Event".
+- **Code checks the model's work where it can.** Gemini is told to skip sales abroad, and a simple rule in code then drops any promo that still mentions a foreign currency or city — the code is predictable where the model isn't.
 - **Never show a guessed date.** Malaysia What's On marks some dates as *tentative* (built from last year's edition); those events are skipped.
 - **Cache keyed by a hash of the model name and the full prompt** (page text, images, rules and date). Unchanged pages never use quota twice, a different model never reuses another model's answers, and empty or fallback-model answers are not cached. The daily job keeps this cache between runs.
 - **One source can feed several tabs.** CloudJoi, Malaysia What's On and KL Events Calendar are each fetched and classified once per run; the other tabs reuse the cached answer.
@@ -137,7 +138,7 @@ To report a problem, see [SECURITY.md](SECURITY.md).
 - **An unpinned library update broke the model name** — a new version switched API versions. Versions are now pinned.
 - **A file in the wrong encoding** — `requirements.txt` was created with PowerShell's `>`, which writes UTF-16; hosting services expect UTF-8.
 - **A robots.txt check that gave the wrong answer** — Python's `robotparser` fetches the file with its own identity; when a site refused that, it reported "forbidden" without reading the rules.
-- **A prompt rule isn't a guarantee** — a sale in the UAE got past "Malaysia only"; the rule now names the currencies (AED, THB, PHP…) that give a foreign sale away.
+- **A prompt rule isn't a guarantee** — a sale in the UAE got past "Malaysia only"; naming the currencies (AED, THB, PHP…) in the prompt helped, but a UAE contest still slipped through later. Now plain code double-checks every promo after Gemini and drops anything mentioning a foreign currency, city or handle (checked against all 46 saved promos: it caught the UAE one and nothing else).
 - **A pasted secret with an invisible line break** — the database token saved in GitHub's secrets ended with a newline, which made every request fail. The code now trims settings before using them.
 - **Free quotas reset on someone else's clock** — Gemini's daily limit resets at midnight Pacific time (4 p.m. in Malaysia), so late-night testing used up the quota for the next morning's run. The daily job now has its own key.
 - **Schedules on the hour are unreliable** — GitHub is busiest at the start of each hour and can delay or drop scheduled runs then, so the job runs at 7:07 instead of 7:00.
