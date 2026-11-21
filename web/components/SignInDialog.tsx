@@ -126,7 +126,10 @@ export default function SignInDialog({ onClose, onSignedIn }: Props) {
 
         <p className="mt-6 text-xs text-muted">
           We only keep your Google name and email, plus the plans you make. No password is shared with this site, and
-          you can delete your account any time.
+          you can delete your account any time.{" "}
+          <a href="/privacy" className="font-semibold underline">
+            Privacy
+          </a>
         </p>
       </motion.div>
     </motion.div>

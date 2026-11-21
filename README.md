@@ -1,49 +1,47 @@
 # What's On Malaysia
 
-A personal dashboard that collects **book promotions**, **tech events**, **orchestra & classical concerts**, **hobby workshops** and **video game events** in Malaysia into one place, and refreshes them on demand.
+A website that collects **book promotions**, **tech events**, **orchestra & classical concerts**, **hobby workshops** and **video game events** in Malaysia into one place, refreshed automatically every morning.
 
 It uses an LLM (Google Gemini) only where judgement is needed — reading messy promo pages and banner images, and deciding which tab an event belongs in — and plain code everywhere else. Its accuracy is measured against hand-labelled test sets.
 
-**Live demo:** _coming soon_
+**Live site:** https://ikhwan-events-helper.vercel.app
 
-![Screenshot of the books tab](docs/screenshot-promos.png)
-![Screenshot of the tech events tab](docs/screenshot-events.png)
+![The website on a computer](docs/screenshot-site.png)
+![The website on a phone](docs/screenshot-phone.png)
 
 ---
 
 ## Features
 
-- **Five tabs:** 📚 Books · 💻 Tech events · 🎻 Orchestra & classical · 🎨 Workshops · 🎮 Video games.
-- **One-click refresh per tab**, so you only wait for what you need.
-- **🆕 New** labels for anything that wasn't there at your last refresh, plus **⏰ Ends in X days** / **📅 Tomorrow** countdowns.
-- **"This weekend" / "Next 7 days" filter** that keeps anything running at some point in that window.
-- **Topic filter for tech events** (AI, Web & Mobile, Cloud & DevOps, Data, Security, Design, Startup, Other tech).
+- **Five tabs**, each with its own colour: Books · Tech · Orchestra · Workshops · Video games.
+- **Three ways to browse:** cards, a timeline, or a month calendar (tap a busy day to see everything on it).
+- **Fresh every morning** — a scheduled job refreshes every tab at about 7 a.m. Malaysia time, so visitors never wait for scraping.
+- **Stickers** for what's new, on now, starting today or tomorrow, ending soon, and sold out.
 - **Reads offers shown only in images** — e.g. a "25% discount" that appears on a banner but nowhere in the text.
 - **The same event from several sites appears once**, even when the sites word the title differently or disagree on the first day.
-- **Private Want / Going plans** — after a password, a "My plan" dropdown appears on every row and a 📌 My plans tab lets you drag events between ⭐ Want and ✅ Going. Without the password, none of this is visible.
+- **Personal Want / Going plans** — sign in with Google, then mark events or drag them between two columns. Confetti when you decide to go; sound effects are optional and off by default. Plans are private and follow you across devices.
+- **Light and dark mode**, animations that respect "reduce motion", and a layout built for phones as much as computers.
 - **Survives bad runs** — an item missing from one refresh is kept until its end date, so a single model mistake doesn't erase it.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    A["Bookstore pages<br/>POPULAR, BookXcess"] --> F["Fetchers"]
-    B["Shopify feeds + banners<br/>Kinokuniya, Big Bad Wolf"] --> F
-    M["MPO season pages"] --> F
-    C["Luma iCal feeds"] --> P["Plain-code parsers<br/>exact dates, times, venues"]
-    E["dev.events JSON-LD"] --> P
-    J["CloudJoi embedded data<br/>+ event page summaries"] --> P
-    W["Malaysia What's On JSON-LD<br/>confirmed dates only"] --> P
-    L["KL Events Calendar API"] --> P
-    F --> G["Gemini<br/>extract promos / concerts<br/>as structured JSON"]
-    P --> T["Gemini<br/>which tab? tech topic?"]
-    G --> K[("Cache")]
-    T --> K
-    G --> D[("SQLite")]
-    T --> D
-    P -->|"dev.events: topic read by code"| D
-    D --> S["Streamlit app"]
+    subgraph Daily["Every morning (GitHub Actions)"]
+        R["refresh_all.py"]
+    end
+    S["Bookstore pages, feeds, banners<br/>event feeds and APIs"] --> R
+    R --> G["Gemini<br/>extract promos and concerts,<br/>sort events into tabs"]
+    G --> R
+    R --> D[("Turso database")]
+    V["Website<br/>Next.js on Vercel"] --> A["API<br/>FastAPI on Render"]
+    A --> D
+    V -. "Sign in with Google" .-> GO["Google"]
 ```
+
+1. Every morning, GitHub Actions runs `refresh_all.py`. It reads each source, asks Gemini only the questions that need judgement, and saves the results to the database.
+2. The website is a Next.js app on Vercel. It asks the Python API on Render for the events, and for each signed-in person's plans.
+3. Sign-in uses Google: Google confirms who someone is, and the API keeps only their name, email and plans.
 
 | Source | Tab | Type | How it's read |
 |---|---|---|---|
@@ -85,26 +83,30 @@ The model wasn't reasoning badly: for *The 9th* (Beethoven's 9th Symphony) it ha
 
 ## Design decisions
 
+**Collecting the data**
+
 - **LLM only where judgement is needed.** Event feeds already contain exact dates and venues, so they're parsed with code; Gemini only returns *which* events belong where (as numbers), so it can never get a date wrong.
 - **Structured output with a schema.** Gemini must return JSON matching a Pydantic model. Fields like `channel`, `topic` and the event kind are enums, so free-text values like "Via Kota Buku" are impossible.
-- **Give the model enough information.** When the classifier missed concerts, the fix wasn't rewording the prompt but adding each event's page summary — read once and cached forever, and only for vague categories like "Music" or "Event".
-- **Never show a guessed date.** Malaysia What's On marks some dates as *tentative* (built from last year's edition); those events are skipped. One was a Big Bad Wolf sale that hadn't been announced.
-- **Cache keyed by a hash of the model name and the full prompt** (page text, images, rules and date). Unchanged pages never use quota twice, a different model never reuses another model's answers, and empty or fallback-model answers are not cached.
-- **One source can feed several tabs.** CloudJoi, Malaysia What's On and KL Events Calendar are each fetched and classified once; refreshing another tab reuses the cached answer at no extra quota.
+- **Give the model enough information.** When the classifier missed concerts, the fix wasn't rewording the prompt but adding each event's page summary — read once and cached, and only for vague categories like "Music" or "Event".
+- **Never show a guessed date.** Malaysia What's On marks some dates as *tentative* (built from last year's edition); those events are skipped.
+- **Cache keyed by a hash of the model name and the full prompt** (page text, images, rules and date). Unchanged pages never use quota twice, a different model never reuses another model's answers, and empty or fallback-model answers are not cached. The daily job keeps this cache between runs.
+- **One source can feed several tabs.** CloudJoi, Malaysia What's On and KL Events Calendar are each fetched and classified once per run; the other tabs reuse the cached answer.
 - **Retries in one place.** Busy errors (503) are retried with backoff and quota errors (429) switch to a fallback model; the Gemini library's own hidden retries are turned off, and every request times out after 2 minutes.
-- **The app and the tests fail differently on purpose.** The app falls back to a weaker model to answer quickly; the tests refuse to fall back and wait patiently instead, because a score from a different model is meaningless. They stop at once if the *daily* limit is gone, since waiting won't help.
-- **Everything is pinned.** A specific model (not a `-latest` nickname, which silently changes) and exact library versions in `requirements.txt`.
-- **Stable identity for items the LLM describes differently each run.** Events are matched by link, or by near-identical titles with overlapping dates across sites; promos by near-identical titles within the same store. Concerts that share one season page get a unique `#tag` on their link so they aren't merged.
+- **The app and the tests fail differently on purpose.** The app falls back to a weaker model to keep going; the tests refuse to fall back and wait instead, because a score from a different model is meaningless.
+- **Everything is pinned.** A specific model (not a `-latest` nickname, which silently changes) and exact library versions.
+- **Stable identity for items the LLM describes differently each run.** Events are matched by link, or by near-identical titles with overlapping dates across sites; promos by near-identical titles within the same store.
 - **A weaker answer never erases good data.** When a refresh returns an empty field (e.g. no end date), the value already stored is kept.
-- **Private by default.** Plans only appear in a browser tab where the password was typed (Streamlit keeps each visitor's session separate), the password is compared in constant time, plans live in the database which is never committed, and with no password set the feature is switched off entirely.
-- **Respect each site's rules.** Every source's `robots.txt` was read before adding it, and a site that blocks AI crawlers was left out because this app sends listings to an LLM.
-- **Link out, don't copy.** Each row shows only a short summary and links to the original listing, so readers go to the organiser's site for full details and tickets.
-- **Polite fetching with a circuit breaker.** Pages are read at most once a second, downloads stop at the first "too many requests", and event pages and banners are cached.
-- **Refresh cooldown** of 6 hours on the public app, to protect the free API quota and the websites.
+- **Respect each site's rules.** Every source's `robots.txt` was read before adding it, and a site that blocks AI crawlers was left out because this project sends listings to an LLM. Fetching is polite: at most one page a second, stopping at the first "too many requests".
+- **Link out, don't copy.** Each card shows only a short summary and links to the original listing for full details and tickets.
 - **Malaysia time everywhere.** Feeds and cloud servers use UTC; all dates are converted to UTC+8 in one place (`clock.py`).
-- **Database migrations** instead of deleting data when the structure changes.
-- **Check a source before adding it.** Every source was probed first for freshness, structure and permission, and many were rejected (see Lessons).
-- **Automation where it's reliable, a human where it isn't.** Big yearly gaming events are announced on social media, so the games tab adds a hand-written watchlist below the automatic results.
+
+**Running it online for free**
+
+- **Scheduled refresh instead of a refresh button.** A GitHub Actions job refreshes every tab each morning and writes straight to the database, so visitors never wait and never spend the Gemini quota. Only the site owner gets a manual Refresh button, as a backup.
+- **A database that survives restarts.** Free web hosting wipes its disk on every restart, so the data lives in Turso (hosted SQLite), reached over HTTP. On my own computer the same code uses a local SQLite file.
+- **Split front end and API.** The website (Next.js, on Vercel) only displays data; the Python API (FastAPI, on Render) owns the database and sign-in. The API only accepts requests from the website's own address.
+- **Sign in with Google instead of passwords.** The site never sees or stores a password. The API checks Google's signed message (that it's genuine, meant for this site and not expired), then issues its own short token signed with a server-side secret. Plans are stored per person; anyone can delete their account and plans from the site.
+- **Instant feedback.** Plan changes show immediately and are undone if the server says no, so dragging feels instant even on a sleepy free server.
 
 ## Lessons learned (bugs found and fixed)
 
@@ -113,37 +115,47 @@ The model wasn't reasoning badly: for *The 9th* (Beethoven's 9th Symphony) it ha
 - **A greedy matching bug in the test script** paired the wrong promos and blamed the model for the script's own mistake.
 - **The answer sheet was wrong too** — the model read "25%" from a banner where my label said 15%, and several of my workshop labels broke my own written rules. Every disagreement is checked against the source, in both directions.
 - **Missing information looks like bad reasoning** — the classifier "missed" Beethoven's 9th because the data it was given only said "Category: Music".
-- **A regression from an unrelated prompt change** — adding topic tags (including a "Startup" topic) made the tech filter start including startup events. The regression test caught it.
+- **A regression from an unrelated prompt change** — adding topic tags made the tech filter start including startup events. The regression test caught it.
 - **Not overfitting a small test set** — on a newer model the same startup event slipped back in. Rather than rewrite the prompt again for one borderline case out of 13, I recorded it and left the prompt alone.
-- **Silent failures** — a model reply in the wrong format used to become "zero promos" with no warning. Now it's retried, logged and shown to the user.
-- **Duplicates that only appeared over time** — the model words titles slightly differently between runs, and the same event appears on several sites. None of this showed up in single-run testing.
-- **"Same start date" was too strict** — two sites listed one concert from different first days (one included a preview night). Matching now uses overlapping dates.
-- **A duplicate check can't remove old duplicates** — a copy saved before the fix kept matching *itself* by its own link, so it needed a one-off clean-up.
+- **Silent failures** — a model reply in the wrong format used to become "zero promos" with no warning. Now it's retried, logged and reported.
+- **"Same start date" was too strict** — two sites listed one concert from different first days. Matching now uses overlapping dates.
 - **A weaker answer overwrote a correct one** — the fallback model missed an end date the main model had read, and saving erased it.
 - **A test that tested the wrong model** — on a busy day every answer came from the fallback model. Tests now pin the main model.
 - **Using an LLM where it wasn't needed** — dev.events only lists tech events, but the LLM tech filter dropped 3 of its 4 conferences. Its topics are now read with simple code.
-- **Hidden retries multiplied** — the Gemini library retried silently inside our own retries, so the app looked frozen for minutes.
-- **An unpinned library update broke the model name** — a new version switched to a different API version where `gemini-flash-latest` doesn't exist. Versions are now pinned.
-- **A file in the wrong encoding** — `requirements.txt` was created with PowerShell's `>`, which writes UTF-16; the hosting service expects UTF-8.
-- **A robots.txt check that gave the wrong answer** — Python's `robotparser` fetches the file with its own identity; when a site refused that, it reported "forbidden" without reading the rules. Reading the file directly showed the site welcomed us.
-- **Structured data can be wrong** — one ticketing site's machine-readable dates contradicted its own page (ending before it started, two months off), so it was rejected.
+- **Hidden retries multiplied** — the Gemini library retried silently inside our own retries, so runs looked frozen for minutes.
+- **An unpinned library update broke the model name** — a new version switched API versions. Versions are now pinned.
+- **A file in the wrong encoding** — `requirements.txt` was created with PowerShell's `>`, which writes UTF-16; hosting services expect UTF-8.
+- **A robots.txt check that gave the wrong answer** — Python's `robotparser` fetches the file with its own identity; when a site refused that, it reported "forbidden" without reading the rules.
 - **A prompt rule isn't a guarantee** — a sale in the UAE got past "Malaysia only"; the rule now names the currencies (AED, THB, PHP…) that give a foreign sale away.
-- **Rejected sources:** a bookshop feed abandoned since 2023, a ticketing site's blog feed, a gaming news feed with one Malaysian event in two months of posts, allevents.in (its robots.txt blocks AI crawlers such as ClaudeBot from the whole site; since this app sends listings to an LLM, I respected that), Eventbrite (no public event-search API, and its terms forbid scraping), eventsize.com (only stale listings), the KLCC Convention Centre page (events load in the browser; its big events already come via other sources), and two sites that block automated visitors outright.
+- **A pasted secret with an invisible line break** — the database token saved in GitHub's secrets ended with a newline, which made every request fail. The code now trims settings before using them.
+- **Free quotas reset on someone else's clock** — Gemini's daily limit resets at midnight Pacific time (4 p.m. in Malaysia), so late-night testing used up the quota for the next morning's run. The daily job now has its own key.
+- **Schedules on the hour are unreliable** — GitHub is busiest at the start of each hour and can delay or drop scheduled runs then, so the job runs at 7:07 instead of 7:00.
+- **One long line made the whole page zoom out on phones** — in a CSS grid, an item won't shrink below its longest unbreakable line by default. The timeline grew three times wider than the screen until the grid was told it may shrink (`minmax(0, 1fr)`).
+- **Redeploying the wrong version** — on the hosting dashboard, "Redeploy" on an older row rebuilt an older commit and quietly replaced the newest one.
+- **Rejected sources:** a bookshop feed abandoned since 2023, a ticketing site's blog feed, a gaming news feed with one Malaysian event in two months of posts, allevents.in (its robots.txt blocks AI crawlers such as ClaudeBot from the whole site; since this project sends listings to an LLM, I respected that), Eventbrite (no public event-search API, and its terms forbid scraping), eventsize.com (only stale listings), the KLCC Convention Centre page (events load in the browser; its big events already come via other sources), and two sites that block automated visitors outright.
 
 ## Limitations
 
-- On the free hosting tier, the database and cache reset when the app restarts; one refresh per tab rebuilds them.
-- **Plans only work when the app runs locally.** The live site has no plans password set, so the feature is switched off there — saved plans would be lost on every restart.
-- The free Gemini tier is sometimes overloaded or out of daily quota; refreshes then fall back to a weaker model, or fail until it recovers.
+- **The free server sleeps.** After about 15 minutes without visitors, the API on Render's free plan goes to sleep, so the first visit after that can take up to a minute ("Waking up the free server...").
+- **Scheduled runs can be late or skipped.** GitHub doesn't guarantee the exact time; a skipped day is caught up by the next morning's run, or by running the job by hand.
+- The free Gemini tier is sometimes overloaded or out of daily quota; a run then falls back to a weaker model, or keeps yesterday's results for the sources it couldn't read.
 - MPH has no machine-readable promo page; its offers are mostly in images and on Instagram, so it isn't covered.
 - CloudJoi is read from its homepage, which lists about 100 events, so some events further down its listings are missed.
 - Video game events are scarce in structured sources; most come from Malaysia What's On, plus the hand-written watchlist (`watchlist.json`).
 
 ## Tech stack
 
-Python · Streamlit · streamlit-sortables · Google Gemini (`google-genai`) · Pydantic · SQLite · pandas · BeautifulSoup · feedparser · icalendar
+**Website:** Next.js 16 · React 19 · TypeScript · Tailwind CSS 4 · Motion · dnd-kit · canvas-confetti · Google Identity Services — hosted on Vercel
+
+**API and data:** Python 3.13 · FastAPI · Google Gemini (`google-genai`) · Pydantic · google-auth · Turso (`turso_serverless`) / SQLite · BeautifulSoup · feedparser · icalendar — hosted on Render
+
+**Automation:** GitHub Actions (daily refresh)
+
+The first version was a Streamlit app (`app.py`); it still runs locally.
 
 ## Run it locally (Windows)
+
+**1. The Python side**
 
 ```powershell
 git clone https://github.com/mIkhwan-hubgit/bookstore-promos.git
@@ -159,18 +171,39 @@ Create a `.env` file (see `.env.example`):
 GEMINI_API_KEY=your-key-here
 GEMINI_MODEL=gemini-3.6-flash
 GEMINI_FALLBACK_MODEL=gemini-3.5-flash-lite
-PLANS_PASSWORD=choose-a-password
+GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+SESSION_SECRET=a-long-random-string
+OWNER_EMAIL=you@gmail.com
 ```
 
-`PLANS_PASSWORD` is optional: leave it out and the plans feature is switched off.
-
-Then:
+Without `TURSO_DATABASE_URL`, everything uses a local `promos.db` file. The three sign-in settings are optional: leave them out and accounts are switched off.
 
 ```powershell
-streamlit run app.py
+python refresh_all.py                            # fill the database (all tabs)
+python -m uvicorn api:app --reload --port 8000   # start the API
 ```
 
-Run the accuracy tests:
+**2. The website** (needs Node.js), in a second terminal:
+
+```powershell
+cd web
+npm install
+```
+
+Create `web/.env.local`:
+
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+```
+
+```powershell
+npm run dev
+```
+
+Then open http://localhost:3000.
+
+**Accuracy tests:**
 
 ```powershell
 python eval_run.py          # bookstore promos
@@ -178,25 +211,43 @@ python eval_events_run.py   # tech-event filter
 python eval_kinds_run.py    # orchestra / workshop / video games sorting
 ```
 
+## Going live (what each service needs)
+
+| Service | Settings |
+|---|---|
+| **Turso** (database) | Create a database; `copy_to_turso.py` copies a local `promos.db` into it |
+| **GitHub Actions** (daily refresh) | Secrets: `GEMINI_API_KEY`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` |
+| **Render** (API) | Build `pip install -r requirements.txt`, start `uvicorn api:app --host 0.0.0.0 --port $PORT`; variables: the Gemini and Turso settings, `GOOGLE_CLIENT_ID`, `SESSION_SECRET`, `OWNER_EMAIL`, `ALLOWED_ORIGINS` (the website's address) |
+| **Vercel** (website) | Root directory `web`; variables: `NEXT_PUBLIC_API_URL` (the API's address), `NEXT_PUBLIC_GOOGLE_CLIENT_ID` |
+| **Google Cloud** (sign-in) | A "Web application" OAuth client whose authorized JavaScript origins include the website's address |
+
 ## Project structure
 
 ```
-app.py                  Streamlit app: tabs, filters, refresh, watchlist, private plans
+refresh_all.py          Refreshes every tab (run daily by GitHub Actions)
+pipeline.py             Collects one tab: runs each source, saves the results
+api.py                  FastAPI: events, sign-in with Google, plans, owner-only refresh
 sources.py              List of sources (name, tabs, type, URL, options)
-fetcher.py              HTML, Atom feed, banner, iCal, JSON-LD, CloudJoi, Malaysia What's On and KL Events Calendar fetching
-llm.py                  Gemini calls: promo and concert extraction, tech filter, event sorting, cache, retries
+fetcher.py              HTML, feed, banner, iCal, JSON-LD and site-specific fetching
+llm.py                  Gemini calls: extraction, filtering, sorting, cache, retries
 schema.py               Pydantic models and enums
-events.py               Turns calendar events and concerts into table rows
-db.py                   SQLite storage, duplicate matching, upserts, migrations, plans
+events.py               Turns calendar events and concerts into rows
+db.py                   Storage (Turso online, SQLite locally), duplicate matching, accounts and plans
 clock.py                Malaysia-time helpers
+copy_to_turso.py        One-off copy of a local database into Turso
 watchlist.json          Hand-written list of video game events to check
-eval_*.py               Snapshot, image and scoring scripts for the accuracy tests
-eval/                   Frozen page snapshots and hand-labelled answer sheets
+app.py                  The original Streamlit version
+eval_*.py, eval/        Accuracy tests: frozen snapshots and hand-labelled answer sheets
+.github/workflows/      The daily refresh schedule
+web/                    The website (Next.js)
+  app/                  Pages: the main page and /privacy
+  components/           Tabs, cards, timeline, calendar, details window, plans board, sign-in
+  lib/                  Talking to the API, dates, sign-in, sounds and confetti
 ```
 
 ## Future work
 
-- Plans on the live site, stored in a free external database so they survive restarts
 - Larger, rolling test sets (a new labelled snapshot every few weeks)
 - Workshops from the Luma KL feed (currently discarded by the tech filter)
 - Banner reading for MPH and the BookXcess homepage
+- Reminders before a "Going" event starts
