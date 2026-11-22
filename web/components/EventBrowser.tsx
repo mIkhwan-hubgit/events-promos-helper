@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import {
   CATEGORIES,
@@ -13,6 +13,7 @@ import {
   type WatchItem,
 } from "@/lib/api";
 import { formatTimestamp, todayInMalaysia } from "@/lib/dates";
+import { getSavedTab, getSavedView, setSavedTab, setSavedView, subscribe } from "@/lib/session";
 import CalendarView from "./CalendarView";
 import { StarDoodle, TabIcon } from "./Doodles";
 import EventCard from "./EventCard";
@@ -37,6 +38,7 @@ const VIEWS: { id: View; label: string }[] = [
   { id: "calendar", label: "Calendar" },
 ];
 
+const TAB_IDS: TabId[] = [...CATEGORIES.map((c) => c.id), "plans"];
 // A springy feel for things that slide, like the tab pill
 const spring = { type: "spring", stiffness: 380, damping: 32 } as const;
 
@@ -54,8 +56,14 @@ async function loadEverything(): Promise<Loaded> {
 }
 
 export default function EventBrowser() {
-  const [chosenTab, setTab] = useState<TabId>("orchestra");
-  const [view, setView] = useState<View>("cards");
+  // Remembered in this browser, so reloading the page keeps your tab and layout
+  // (the server can't see browser storage, so it always draws the default first)
+  const savedTab = useSyncExternalStore(subscribe, getSavedTab, () => null);
+  const savedView = useSyncExternalStore(subscribe, getSavedView, () => null);
+  const chosenTab: TabId = TAB_IDS.includes(savedTab as TabId) ? (savedTab as TabId) : "orchestra";
+  const view: View = VIEWS.some((v) => v.id === savedView) ? (savedView as View) : "cards";
+  const setTab = (id: TabId) => setSavedTab(id);
+  const setView = (id: View) => setSavedView(id);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);

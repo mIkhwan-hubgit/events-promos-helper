@@ -55,3 +55,21 @@ export function getSoundOn(): boolean {
 export function setSoundOn(on: boolean) {
   write(SOUND_KEY, on ? "on" : null);
 }
+
+
+// The last tab and layout you looked at, so a page reload brings you back to them
+export function getSavedTab(): string | null {
+  return read("tab");
+}
+
+export function setSavedTab(tab: string) {
+  write("tab", tab);
+}
+
+export function getSavedView(): string | null {
+  return read("view");
+}
+
+export function setSavedView(view: string) {
+  write("view", view);
+}
