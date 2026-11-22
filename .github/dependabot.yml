@@ -18,6 +18,9 @@ updates:
     groups:
       website:
         patterns: ["*"] # one pull request for all website updates instead of many
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"] # skip TypeScript 7 until the code checker supports it
 
   - package-ecosystem: "github-actions" # the actions used in .github/workflows
     directory: "/"
