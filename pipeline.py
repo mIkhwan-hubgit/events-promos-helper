@@ -103,7 +103,9 @@ def refresh(category):
         try:
             promos = job.result()
         except Exception as e:
-            problems.append(f"Couldn't update {source['name']}: {e}")
+            # The full error goes to the server log only; the page gets a short, safe summary
+            print(f"{source['name']}: {e!r}", flush=True)
+            problems.append(f"Couldn't update {source['name']} this time ({type(e).__name__}).")
             continue
         if not promos:
             if source["type"] not in EMPTY_IS_NORMAL:

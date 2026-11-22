@@ -18,7 +18,7 @@ export default function Home() {
           Privacy
         </Link>
         <a
-          href="https://github.com/mIkhwan-hubgit/bookstore-promos"
+          href="https://github.com/mIkhwan-hubgit/events-promos-helper"
           target="_blank"
           rel="noopener noreferrer"
           className="font-semibold hover:text-ink"

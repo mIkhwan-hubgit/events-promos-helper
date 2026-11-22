@@ -143,6 +143,7 @@ To report a problem, see [SECURITY.md](SECURITY.md).
 - **Free quotas reset on someone else's clock** — Gemini's daily limit resets at midnight Pacific time (4 p.m. in Malaysia), so late-night testing used up the quota for the next morning's run. The daily job now has its own key.
 - **Schedules on the hour are unreliable** — GitHub is busiest at the start of each hour and can delay or drop scheduled runs then, so the job runs at 7:07 instead of 7:00.
 - **One long line made the whole page zoom out on phones** — in a CSS grid, an item won't shrink below its longest unbreakable line by default. The timeline grew three times wider than the screen until the grid was told it may shrink (`minmax(0, 1fr)`).
+- **Reading security alerts critically** — CodeQL flagged two things. One was real: error messages from failed sources (which can contain internal details) were sent to the page, so now the full error only goes to the server log and the page gets a short summary. The other was a false positive: signing tokens with HMAC-SHA256 and a random server secret looks like weak password hashing to the scanner, so it was dismissed with a written reason.
 - **Redeploying the wrong version** — on the hosting dashboard, "Redeploy" on an older row rebuilt an older commit and quietly replaced the newest one.
 - **A one-line edit broke only sign-in** — while adding a new setting, an existing one (`TOKEN_DAYS`) was overwritten. Browsing still worked, so nothing looked wrong until someone signed in and the API crashed. The browser reported it as a confusing "CORS" error, because a crashed server sends no permission headers; the server's own log showed the real cause (`NameError`). Lesson: read the server log first, and test the sign-in path before every release.
 - **Rejected sources:** a bookshop feed abandoned since 2023, a ticketing site's blog feed, a gaming news feed with one Malaysian event in two months of posts, allevents.in (its robots.txt blocks AI crawlers such as ClaudeBot from the whole site; since this project sends listings to an LLM, I respected that), Eventbrite (no public event-search API, and its terms forbid scraping), eventsize.com (only stale listings), the KLCC Convention Centre page (events load in the browser; its big events already come via other sources), and two sites that block automated visitors outright.
@@ -171,8 +172,8 @@ The first version was a Streamlit app (`app.py`); it still runs locally.
 **1. The Python side**
 
 ```powershell
-git clone https://github.com/mIkhwan-hubgit/bookstore-promos.git
-cd bookstore-promos
+git clone https://github.com/mIkhwan-hubgit/events-promos-helper.git
+cd events-promos-helper
 python -m venv .venv
 .venv\Scripts\activate
 python -m pip install -r requirements.txt
