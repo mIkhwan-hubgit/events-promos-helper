@@ -15,7 +15,7 @@ It uses an LLM (Google Gemini) only where judgement is needed — reading messy 
 
 - **Five tabs**, each with its own colour: Books · Tech · Orchestra · Workshops · Video games.
 - **Three ways to browse:** cards, a timeline, or a month calendar (tap a busy day to see everything on it). The site remembers your last tab and layout, so reloading the page brings you back to them.
-- **Fresh every morning** — a scheduled job refreshes every tab at about 7 a.m. Malaysia time, so visitors never wait for scraping.
+- **Fresh every morning** — every tab is refreshed at 7 a.m. Malaysia time, so visitors never wait for scraping.
 - **Stickers** for what's new, on now, starting today or tomorrow, ending soon, and sold out, plus your own ★ Want / ✓ Going marks, shown in all three views (cards, timeline and calendar).
 - **Reads offers shown only in images** — e.g. a "25% discount" that appears on a banner but nowhere in the text.
 - **The same event from several sites appears once**, even when the sites word the title differently or disagree on the first day.
@@ -39,7 +39,7 @@ flowchart LR
     V -. "Sign in with Google" .-> GO["Google"]
 ```
 
-1. Every morning, GitHub Actions runs `refresh_all.py`. It reads each source, asks Gemini only the questions that need judgement, and saves the results to the database.
+1. Every morning at 7:00, a free outside timer (cron-job.org) starts a GitHub Actions job through GitHub's API, and the job runs `refresh_all.py`. It reads each source, asks Gemini only the questions that need judgement, and saves the results to the database.
 2. The website is a Next.js app on Vercel. It asks the Python API on Render for the events, and for each signed-in person's plans.
 3. Sign-in uses Google: Google confirms who someone is, and the API keeps only their name, email and plans.
 
@@ -141,7 +141,7 @@ To report a problem, see [SECURITY.md](SECURITY.md).
 - **A prompt rule isn't a guarantee** — a sale in the UAE got past "Malaysia only"; naming the currencies (AED, THB, PHP…) in the prompt helped, but a UAE contest still slipped through later. Now plain code double-checks every promo after Gemini and drops anything mentioning a foreign currency, city or handle (checked against all 46 saved promos: it caught the UAE one and nothing else).
 - **A pasted secret with an invisible line break** — the database token saved in GitHub's secrets ended with a newline, which made every request fail. The code now trims settings before using them.
 - **Free quotas reset on someone else's clock** — Gemini's daily limit resets at midnight Pacific time (4 p.m. in Malaysia), so late-night testing used up the quota for the next morning's run. The daily job now has its own key.
-- **Schedules on the hour are unreliable** — GitHub is busiest at the start of each hour and can delay or drop scheduled runs then, so the job runs at 7:07 instead of 7:00.
+- **Free schedules aren't punctual** — GitHub's own scheduler started the "7 a.m." job almost 5 hours late, and on another day not at all by 8:30. The 7 a.m. run is now started by an outside timer through GitHub's API (on time to the minute), using a key that can only start Actions on this one repo. GitHub's schedule stays as a backup at 9:37 a.m. and skips any tab already refreshed that day, so a late backup can't wipe the morning's "NEW!" stickers.
 - **One long line made the whole page zoom out on phones** — in a CSS grid, an item won't shrink below its longest unbreakable line by default. The timeline grew three times wider than the screen until the grid was told it may shrink (`minmax(0, 1fr)`).
 - **Not every automatic update is safe** — Dependabot's website update included TypeScript 7, a major version. The site still built, but the code checker (ESLint) stopped working because its TypeScript plugin doesn't support version 7 yet. Each update is now tested before merging, and major TypeScript updates are skipped until the tools catch up.
 - **Reading security alerts critically** — CodeQL flagged two things. One was real: error messages from failed sources (which can contain internal details) were sent to the page, so now the full error only goes to the server log and the page gets a short summary. The other was a false positive: signing tokens with HMAC-SHA256 and a random server secret looks like weak password hashing to the scanner, so it was dismissed with a written reason.
@@ -152,7 +152,7 @@ To report a problem, see [SECURITY.md](SECURITY.md).
 ## Limitations
 
 - **The free server sleeps.** After about 15 minutes without visitors, the API on Render's free plan goes to sleep, so the first visit after that can take up to a minute ("Waking up the free server...").
-- **Scheduled runs can be late or skipped.** GitHub doesn't guarantee the exact time; a skipped day is caught up by the next morning's run, or by running the job by hand.
+- **The morning run depends on two free services.** If the outside timer fails, GitHub's backup schedule fills in later that morning (it can be hours late); the job can also be run by hand.
 - The free Gemini tier is sometimes overloaded or out of daily quota; a run then falls back to a weaker model, or keeps yesterday's results for the sources it couldn't read.
 - MPH has no machine-readable promo page; its offers are mostly in images and on Instagram, so it isn't covered.
 - CloudJoi is read from its homepage, which lists about 100 events, so some events further down its listings are missed.
@@ -239,6 +239,7 @@ streamlit run app.py
 |---|---|
 | **Turso** (database) | Create a database; `copy_to_turso.py` copies a local `promos.db` into it |
 | **GitHub Actions** (daily refresh) | Secrets: `GEMINI_API_KEY`, `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` |
+| **cron-job.org** (7 a.m. timer) | A daily `POST` to GitHub's "create a workflow dispatch event" API with `{"ref":"main"}`, using a fine-grained token limited to this repo with only *Actions: read and write* |
 | **Render** (API) | Build `pip install -r requirements.txt`, start `uvicorn api:app --host 0.0.0.0 --port $PORT`; variables: the Gemini and Turso settings, `GOOGLE_CLIENT_ID`, `SESSION_SECRET`, `OWNER_EMAIL`, `ALLOWED_ORIGINS` (the website's address) |
 | **Vercel** (website) | Root directory `web`; variables: `NEXT_PUBLIC_API_URL` (the API's address), `NEXT_PUBLIC_GOOGLE_CLIENT_ID` |
 | **Google Cloud** (sign-in) | A "Web application" OAuth client whose authorized JavaScript origins include the website's address |

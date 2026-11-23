@@ -2,10 +2,18 @@
 # The results go straight into the online Turso database.
 name: Daily refresh
 
+# The main run is started at 7:00 a.m. Malaysia time by an outside timer (cron-job.org), which presses
+# "Run workflow" through GitHub's API. GitHub's own schedule is only a backup: it can run hours late,
+# so it skips any tab that was already refreshed today.
 on:
+  workflow_dispatch: # the 7 a.m. timer and the "Run workflow" button both start the job this way
   schedule:
-    - cron: "7 23 * * *" # 23:07 UTC = 7:07 a.m. Malaysia time (GitHub's clock is UTC)
-  workflow_dispatch: # adds a "Run workflow" button on GitHub, to run it by hand
+    - cron: "37 1 * * *" # backup: 01:37 UTC = 9:37 a.m. Malaysia time (GitHub's clock is UTC)
+
+# If two runs ever overlap, the second waits for the first instead of both writing at once
+concurrency:
+  group: daily-refresh
+  cancel-in-progress: false
 
 # This job only needs to read the code. It never changes the repository.
 permissions:
@@ -36,7 +44,8 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - run: python refresh_all.py
+      # The backup schedule only fills in tabs that weren't refreshed today
+      - run: python refresh_all.py ${{ github.event_name == 'schedule' && '--skip-if-done-today' || '' }}
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: gemini-3.6-flash
