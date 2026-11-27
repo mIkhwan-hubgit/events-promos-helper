@@ -18,6 +18,7 @@ import CalendarView from "./CalendarView";
 import { StarDoodle, TabIcon } from "./Doodles";
 import EventCard from "./EventCard";
 import EventDetails from "./EventDetails";
+import EventsizeWatchlist from "./EventsizeWatchlist";
 import PlansBoard from "./PlansBoard";
 import { usePlans } from "./PlansProvider";
 import TimelineView from "./TimelineView";
@@ -280,6 +281,7 @@ export default function EventBrowser() {
                     </ul>
                   </div>
                 )}
+                {tab !== "plans" && <EventsizeWatchlist category={tab} />}
               </motion.div>
             </AnimatePresence>
           </>

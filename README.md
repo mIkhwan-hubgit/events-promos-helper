@@ -20,6 +20,7 @@ It uses an LLM (Google Gemini) only where judgement is needed — reading messy 
 - **Reads offers shown only in images** — e.g. a "25% discount" that appears on a banner but nowhere in the text.
 - **The same event from several sites appears once**, even when the sites word the title differently or disagree on the first day.
 - **Personal Want / Going plans** — sign in with Google, then mark events or drag them between two columns. Confetti when you decide to go; sound effects are optional and off by default. Plans are private and follow you across devices.
+- **Explore on Eventsize** — every tab ends with keyword links (e.g. *pottery*, *hackathon*, *cosplay*) that search Eventsize's Malaysian pages, since that site can't be read automatically.
 - **Light and dark mode**, animations that respect "reduce motion", and a layout built for phones as much as computers.
 - **Survives bad runs** — an item missing from one refresh is kept until its end date, so a single model mistake doesn't erase it.
 
@@ -54,6 +55,7 @@ flowchart LR
 | Malaysia What's On | Orchestra, Workshops, Video games | JSON-LD on each event page (cached for a week) | Parsed with code; events whose dates are only *tentative* are skipped; Gemini sorts the rest into tabs |
 | KL Events Calendar | Orchestra, Workshops, Video games | Public events API (WordPress plugin) | Parsed with code, including the site's own categories; Gemini sorts events into tabs |
 | Watchlist | Video games | Hand-written list | Big yearly gaming events to check by hand, with one-click Google searches |
+| Eventsize keywords | All tabs | Links only (`web/lib/eventsize.ts`) | Keyword links that open a search of eventsize.com; nothing is read from the site |
 
 ## Accuracy
 
@@ -147,7 +149,7 @@ To report a problem, see [SECURITY.md](SECURITY.md).
 - **Reading security alerts critically** — CodeQL flagged two things. One was real: error messages from failed sources (which can contain internal details) were sent to the page, so now the full error only goes to the server log and the page gets a short summary. The other was a false positive: signing tokens with HMAC-SHA256 and a random server secret looks like weak password hashing to the scanner, so it was dismissed with a written reason.
 - **Redeploying the wrong version** — on the hosting dashboard, "Redeploy" on an older row rebuilt an older commit and quietly replaced the newest one.
 - **A one-line edit broke only sign-in** — while adding a new setting, an existing one (`TOKEN_DAYS`) was overwritten. Browsing still worked, so nothing looked wrong until someone signed in and the API crashed. The browser reported it as a confusing "CORS" error, because a crashed server sends no permission headers; the server's own log showed the real cause (`NameError`). Lesson: read the server log first, and test the sign-in path before every release.
-- **Rejected sources:** a bookshop feed abandoned since 2023, a ticketing site's blog feed, a gaming news feed with one Malaysian event in two months of posts, allevents.in (its robots.txt blocks AI crawlers such as ClaudeBot from the whole site; since this project sends listings to an LLM, I respected that), Eventbrite (no public event-search API, and its terms forbid scraping), eventsize.com (only stale listings), the KLCC Convention Centre page (events load in the browser; its big events already come via other sources), and two sites that block automated visitors outright.
+- **Rejected sources:** a bookshop feed abandoned since 2023, a ticketing site's blog feed, a gaming news feed with one Malaysian event in two months of posts, allevents.in (its robots.txt blocks AI crawlers such as ClaudeBot from the whole site; since this project sends listings to an LLM, I respected that), Eventbrite (no public event-search API, and its terms forbid scraping), eventsize.com (re-checked in November 2026: the public page still showed only February events, and every page answers automated visitors with Cloudflare's "Just a moment..." bot check; getting around a bot check isn't something this project does; each tab links to Eventsize searches instead, and I've asked the site for permission or a feed), the KLCC Convention Centre page (events load in the browser; its big events already come via other sources), and two sites that block automated visitors outright.
 
 ## Limitations
 
@@ -269,7 +271,7 @@ SECURITY.md             How to report a security problem
 web/                    The website (Next.js)
   app/                  Pages: the main page and /privacy
   components/           Tabs, cards, timeline, calendar, details window, plans board, sign-in
-  lib/                  Talking to the API, dates, sign-in, sounds and confetti
+  lib/                  Talking to the API, dates, sign-in, sounds and confetti, Eventsize keyword links
 ```
 
 ## Future work
@@ -278,3 +280,4 @@ web/                    The website (Next.js)
 - Workshops from the Luma KL feed (currently discarded by the tech filter)
 - Banner reading for MPH and the BookXcess homepage
 - Reminders before a "Going" event starts
+
