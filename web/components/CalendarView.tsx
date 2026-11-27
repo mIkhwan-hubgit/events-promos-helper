@@ -131,7 +131,7 @@ export default function CalendarView({ events, today, onOpen }: Props) {
               className="min-w-0 rounded-2xl border-[1.5px] border-line bg-surface p-4"
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.2 }}
+              viewport={{ once: true, amount: "some" }}
               transition={{ duration: 0.35, delay: index * 0.08 }}
             >
               <h3 className="mb-3 font-display text-lg font-semibold">

@@ -38,7 +38,7 @@ export default function TimelineView({ events, today, onOpen }: Props) {
           className="timeline-day relative min-w-0"
           initial={{ opacity: 0, x: -16 }}
           whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
+          viewport={{ once: true, amount: "some" }}
           transition={{ duration: 0.35 }}
         >
           <h3 className="font-display text-lg font-semibold">
